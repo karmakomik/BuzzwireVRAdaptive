@@ -30,7 +30,7 @@ public class ExperimentManagerScript : MonoBehaviour
     {
         while (true)
         {
-            yield return StartCoroutine(MoveFromTo(ring.transform, anchorsLst[listPos].transform, anchorsLst[listPos + 1].transform, 0.1f));            
+            yield return StartCoroutine(MoveFromTo(ring.transform, anchorsLst[listPos].transform, anchorsLst[listPos + 1].transform, 0.01f));            
             if (listPos < anchorsLst.Count - 2)
             {
                 listPos++;                
