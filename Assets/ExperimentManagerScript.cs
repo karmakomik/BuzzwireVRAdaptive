@@ -4,18 +4,26 @@ using UnityEngine;
 
 public class ExperimentManagerScript : MonoBehaviour
 {
-    public List<GameObject> anchorsLst;
+    List<GameObject> anchorsLst;
     float fraction;
     int listPos;
     public GameObject ring;
+    public float speed;
+    public GameObject primerAnchorRoot;
     // Start is called before the first frame update
     void Start()
     {
         listPos = 0;
         fraction = 0;
-        //anchorsLst = new List<GameObject>();
-        StartCoroutine(MoveRing());
+        speed = 0.01f;
+        anchorsLst = new List<GameObject>();
+        //StartCoroutine(MoveRing());
         //StartCoroutine(MoveFromTo(ring.transform,anchorsLst[1].transform, anchorsLst[2].transform, 0.01f));
+        //Assign all child gameobjects of primerAnchorRoot to anchorsLst
+        for (int i = 0; i < primerAnchorRoot.transform.childCount; i++)
+        {
+            anchorsLst.Add(primerAnchorRoot.transform.GetChild(i).gameObject);
+        }
     }
 
     // Update is called once per frame
@@ -24,13 +32,23 @@ public class ExperimentManagerScript : MonoBehaviour
         
     }
 
+    public void changeSpeed(float newSpeed)
+    {
+        speed = newSpeed;
+    }
+
+    public void startSpeedPrimer()
+    {
+        StartCoroutine(MoveRing());
+    }
+
     //Write a coroutine to iterate through a list of gameobjects, call the MoveFromTo function on each pair of gameobjects 
     //and wait for the coroutine to finish before moving to the next pair of gameobjects
     IEnumerator MoveRing()
     {
         while (true)
         {
-            yield return StartCoroutine(MoveFromTo(ring.transform, anchorsLst[listPos].transform, anchorsLst[listPos + 1].transform, 0.01f));            
+            yield return StartCoroutine(MoveFromTo(ring.transform, anchorsLst[listPos].transform, anchorsLst[listPos + 1].transform, speed));            
             if (listPos < anchorsLst.Count - 2)
             {
                 listPos++;                
