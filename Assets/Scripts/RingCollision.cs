@@ -15,7 +15,8 @@ public class RingCollision : MonoBehaviour
     //GameObject mistakeLineObj;
     private Vector3 mistakeVector;
     Vector3 mistakeDirection;
-    int levelStartTime;
+    int levelStartTime, levelEndTime;
+    
     //public GameObject hapticPointer;
     Vector3 normForceVector, prevNormForceVector;
 
@@ -25,7 +26,7 @@ public class RingCollision : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        levelStartTime = 0;
+        levelStartTime = levelEndTime = 0;
         numCollidersInContact = 0;
         experimentControllerScript = experimentController.GetComponent<ExperimentManagerScript>();
     }
@@ -133,9 +134,25 @@ public class RingCollision : MonoBehaviour
             //startStopLight.SetActive(false);
             //Debug.Log("Collision with " + other.gameObject);
             loc = other.gameObject.GetComponent<Collider>().ClosestPointOnBounds(transform.position);
-            //Debug.Log(loc);       
+            //experimentControllerScript.mistakePrimer.transform.position = loc;
+            string dragDir = other.gameObject.tag;
+            if (dragDir == "x-axis")
+            {
+                experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, 0);
+                experimentControllerScript.mistakePrimer.transform.position = new Vector3(loc.x, other.gameObject.transform.position.y, other.gameObject.transform.position.z);
+            }
+            else if (dragDir == "y-axis")
+            {
+                experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, 90);
+                experimentControllerScript.mistakePrimer.transform.position = new Vector3(other.gameObject.transform.position.x + 0.015f, loc.y, other.gameObject.transform.position.z);
+            }
+            else if (dragDir == "z-axis")
+            {
+                experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 90, 0);
+                experimentControllerScript.mistakePrimer.transform.position = new Vector3(other.gameObject.transform.position.x + 0.015f, other.gameObject.transform.position.y, loc.z);
+            }
         }
-        else if(other.tag == "StartZone")
+        else if (other.tag == "StartZone")
         {
             //startStopLight.SetActive(true);
             experimentControllerScript.stopMistakeFeedback();
@@ -193,8 +210,15 @@ public class RingCollision : MonoBehaviour
         else if (other.tag == "StopZone")
         {
             Debug.Log("Level finished!");
-            if(experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
+            if (experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
+            {
+                levelEndTime = (int)Time.time;
+                experimentControllerScript.lastTrainingIterationSpeed = (float) 57 / (float)(levelEndTime - levelStartTime);
+                Debug.Log("Last TCT was - " + (float)(levelEndTime - levelStartTime));
+                Debug.Log("Last speed was - " + experimentControllerScript.lastTrainingIterationSpeed);
+                experimentControllerScript.changeSpeedTxt();
                 experimentControllerScript.showLevelResult(((int)Time.time - levelStartTime));
+            }
             //startStopLight.SetActive(true);
             experimentControllerScript.feedbackEnabled = false;
             //experimentControllerScript.startStopRefController.SetActive(true);

@@ -21,7 +21,7 @@ public class ExperimentManagerScript : MonoBehaviour
     List<GameObject> anchorsLst;
     float fraction;
     int listPos;
-    public GameObject speedPrimer;
+    public GameObject speedPrimer, mistakePrimer;
     public float speed; //cm per second
     public GameObject levelAnchorsRoot;
     public GameObject levelObj;
@@ -58,7 +58,8 @@ public class ExperimentManagerScript : MonoBehaviour
     //public GameObject restOverIndicator;
     public GameObject configMenu;
     public Slider avatar_x_slider, avatar_y_slider, avatar_z_slider, hapticEnv_x_slider, hapticEnv_y_slider, hapticEnv_z_slider;
-       
+    public TMPro.TMP_Text currSpeedTxt, prevSpeedTxt;
+
     //VR UI
     public GameObject levelTimeResultsObj;
     public int levelTimeResult;
@@ -76,6 +77,8 @@ public class ExperimentManagerScript : MonoBehaviour
     public GameObject solidRightHandController;
     //public GameObject ghost_wire;
     public GameObject hookRoot;
+
+    public float lastTrainingIterationSpeed;
 
     public SimpleTcpClient client;
 
@@ -119,7 +122,9 @@ public class ExperimentManagerScript : MonoBehaviour
     {
         listPos = 0;
         fraction = 0;
-        speed = 1f;
+        lastTrainingIterationSpeed = 0;
+        speed = 0;
+        
         anchorsLst = new List<GameObject>();
         //StartCoroutine(MoveRing());
         //StartCoroutine(MoveFromTo(ring.transform,anchorsLst[1].transform, anchorsLst[2].transform, 0.01f));
@@ -158,9 +163,22 @@ public class ExperimentManagerScript : MonoBehaviour
     {
         speed = newSpeed;
     }
+    
+    public void changeSpeedTxt()
+    {
+        prevSpeedTxt.text = "Previous training speed " + lastTrainingIterationSpeed;
+        currSpeedTxt.text = "Current primer speed " + lastTrainingIterationSpeed;
+    }
 
+    public void enableMistakePrimer()
+    {
+        
+    }
+    
     public void startSpeedPrimer()
     {
+        listPos = 0;
+        changeSpeed(lastTrainingIterationSpeed);   
         StartCoroutine(MoveRing());
     }
 
@@ -181,7 +199,7 @@ public class ExperimentManagerScript : MonoBehaviour
     
     IEnumerator MoveFromTo(Transform objectToMove, Transform a, Transform b, float speed) //Adapted from https://gamedev.stackexchange.com/questions/100535/coroutine-to-move-to-position-passing-the-movement-speed
     {
-        float step = ((speed/100) / (a.position - b.position).magnitude) * Time.fixedDeltaTime;
+        float step = ((speed/100) / (a.position - b.position).magnitude) * Time.fixedDeltaTime; //Speed is converted from cm to m
         float t = 0;
         while (t <= 1.0f)
         {
@@ -567,6 +585,7 @@ public class ExperimentManagerScript : MonoBehaviour
     {
         levelTimeResultsObj.SetActive(true);
         levelTimeResultsObj.transform.GetChild(0).GetChild(0).GetComponent<TMPro.TMP_Text>().text = "You took " + _levelTimeResult + " seconds. \n Come on, you can do it faster!";
+
     }
 
     public void saveConfig()
