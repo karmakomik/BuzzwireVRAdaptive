@@ -105,6 +105,8 @@ public class RingCollision : MonoBehaviour
             experimentControllerScript.doControllerReattachOperations("null");
             experimentControllerScript.mistakeLineObj.SetActive(false);
             experimentControllerScript.stopMistakeFeedback();
+            experimentControllerScript.surveyPanel.SetActive(true);
+            
             //experimentControllerScript.changeIntensityOfGhost(1);
             experimentControllerScript.feedbackEnabled = false;
             //experimentControllerScript.startStopRefController.SetActive(true);

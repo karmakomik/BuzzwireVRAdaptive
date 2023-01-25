@@ -4,6 +4,8 @@ using UnityEngine;
 using SimpleTCP;
 using UnityEditor.PackageManager;
 using UnityEngine.UI;
+using System.Security.Policy;
+using System.ComponentModel.Design;
 
 public enum ExperimentState
 {
@@ -25,7 +27,6 @@ public class ExperimentManagerScript : MonoBehaviour
     public float speed; //cm per second
     public GameObject levelAnchorsRoot;
     public GameObject levelObj;
-
 
     Vector3 detachPt;
     Vector3 offsetGhostDistance;
@@ -64,8 +65,9 @@ public class ExperimentManagerScript : MonoBehaviour
     public GameObject levelTimeResultsObj;
     public int levelTimeResult;
     public GameObject surveyPanel;
+    public Slider speedSESlider, mistakeSESlider;
 
-
+    public GameObject laserPointerObj;
     public Quaternion hookRootDefaultRot;
     public Vector3 hookRootDefaultPos;
     public Quaternion solidRightHandControllerDefaultRot;
@@ -78,9 +80,12 @@ public class ExperimentManagerScript : MonoBehaviour
     //public GameObject ghost_wire;
     public GameObject hookRoot;
 
-    public float lastTrainingIterationSpeed;
+    public float lastTrainingIterationSpeed, nextTrainingIterationSpeed;
 
     public SimpleTcpClient client;
+
+    //SE related
+    float speedSEVal, mistakeSEVal;
 
     private void Awake()
     {
@@ -122,9 +127,9 @@ public class ExperimentManagerScript : MonoBehaviour
     {
         listPos = 0;
         fraction = 0;
-        lastTrainingIterationSpeed = 0;
+        lastTrainingIterationSpeed = 1f;
         speed = 0;
-        
+
         anchorsLst = new List<GameObject>();
         //StartCoroutine(MoveRing());
         //StartCoroutine(MoveFromTo(ring.transform,anchorsLst[1].transform, anchorsLst[2].transform, 0.01f));
@@ -159,58 +164,7 @@ public class ExperimentManagerScript : MonoBehaviour
 
     }
 
-    public void changeSpeed(float newSpeed)
-    {
-        speed = newSpeed;
-    }
-    
-    public void changeSpeedTxt()
-    {
-        prevSpeedTxt.text = "Previous training speed " + lastTrainingIterationSpeed;
-        currSpeedTxt.text = "Current primer speed " + lastTrainingIterationSpeed;
-    }
 
-    public void enableMistakePrimer()
-    {
-        
-    }
-    
-    public void startSpeedPrimer()
-    {
-        listPos = 0;
-        changeSpeed(lastTrainingIterationSpeed);   
-        StartCoroutine(MoveRing());
-    }
-
-    IEnumerator MoveRing()
-    {
-        while (true)
-        {
-            yield return StartCoroutine(MoveFromTo(speedPrimer.transform, anchorsLst[listPos].transform, anchorsLst[listPos + 1].transform, speed));            
-            if (listPos < anchorsLst.Count - 2)
-            {
-                listPos++;                
-            }
-            else
-                break;
-        }
-    }
-
-    
-    IEnumerator MoveFromTo(Transform objectToMove, Transform a, Transform b, float speed) //Adapted from https://gamedev.stackexchange.com/questions/100535/coroutine-to-move-to-position-passing-the-movement-speed
-    {
-        float step = ((speed/100) / (a.position - b.position).magnitude) * Time.fixedDeltaTime; //Speed is converted from cm to m
-        float t = 0;
-        while (t <= 1.0f)
-        {
-            t += step; // Goes from 0 to 1, incrementing by step each time
-            objectToMove.position = Vector3.Lerp(a.position, b.position, t); // Move objectToMove closer to b
-            objectToMove.rotation = Quaternion.Lerp(a.rotation, b.rotation, t);
-            yield return new WaitForFixedUpdate();         // Leave the routine and return here in the next frame
-        }
-        objectToMove.position = b.position;
-        objectToMove.rotation = b.rotation;
-    }
     
     private void FixedUpdate()
     {
@@ -237,7 +191,8 @@ public class ExperimentManagerScript : MonoBehaviour
             if (isDetached && feedbackEnabled)
             {
                 mistakeLineObj.SetActive(true);
-                //StartCoroutine(Haptics(1, 1, 0.1f, true, false));
+                //StartCoroutine(Haptics(1, 1, 0.2f, true, false));
+                OVRInput.SetControllerVibration(1, 1, OVRInput.Controller.RTouch);
                 if (client != null && expState != ExperimentState.VR_TUTORIAL)
                     client.Write("M;1;;;BuzzWireHitVR;\r\n");
                 //Debug.Log("isDetached = true");
@@ -353,6 +308,7 @@ public class ExperimentManagerScript : MonoBehaviour
     {
         //Debug.Log("isDetached = false, collision with " + tag);
         isDetached = false;
+        OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch);
 
         ghostRightHandController.SetActive(false);
 
@@ -569,7 +525,7 @@ public class ExperimentManagerScript : MonoBehaviour
                 break;
 
 
-            case "POST_TEST_2":
+            case "POST_TEST":
                 surveyPanel.SetActive(false);
                 expState = ExperimentState.POST_TEST;
                 modeTxt.text = "Post Test Active";
@@ -610,6 +566,120 @@ public class ExperimentManagerScript : MonoBehaviour
             configMenu.SetActive(true);
         }
     }
+
+    public void decideNextTrial()
+    {
+        surveyPanel.SetActive(false);
+        
+        speedSEVal = speedSESlider.value;
+        mistakeSEVal = mistakeSESlider.value;
+
+        //Logic for selecting next primer
+        if (speedSEVal > mistakeSEVal)
+        {
+            selectMistakePrimer();
+        }
+        else if (speedSEVal < mistakeSEVal)
+        {
+            selectSpeedPrimer();
+        }
+        else //Equal so randomly choose
+        {
+            //Randomly choose between invoking selectSpeedPrimer or selectMistakePrimer
+            
+            float rand = Random.Range(0, 9);
+            if ((int)rand % 2 == 0)
+            {
+                selectSpeedPrimer();
+            }
+            else
+            {
+                selectMistakePrimer();
+            }
+        }
+
+        //Reset sliders to middle
+        speedSESlider.value = (speedSESlider.maxValue + speedSESlider.minValue) / 2;
+        mistakeSESlider.value = (mistakeSESlider.maxValue + mistakeSESlider.minValue) / 2;
+    }
+    
+    public void selectSpeedPrimer()
+    {
+        Debug.Log("Speed Primer Selected");
+        mistakePrimer.SetActive(false);
+        speedPrimer.SetActive(true);
+        //Check condition and calculate next speed primer's speed based on either previous speed or pretest speed
+        nextTrainingIterationSpeed = lastTrainingIterationSpeed * 1.1f; // Increase speed by 10%
+        Debug.Log("Current speed is - " + lastTrainingIterationSpeed);
+        changeSpeed(nextTrainingIterationSpeed);
+        startSpeedPrimer();
+    }
+
+    public void selectMistakePrimer()
+    {
+        Debug.Log("Mistake Primer Selected");
+        mistakePrimer.SetActive(true);
+        speedPrimer.SetActive(false);
+    }
+
+    public void changeSpeed(float newSpeed)
+    {
+        speed = newSpeed;
+    }
+
+    public void changeSpeedTxt()
+    {
+        prevSpeedTxt.text = "Previous training speed " + lastTrainingIterationSpeed;
+        currSpeedTxt.text = "Current primer speed " + lastTrainingIterationSpeed;
+    }
+
+    public void startSpeedPrimer()
+    {
+        listPos = 0;
+        //
+        StartCoroutine(MoveRing());
+    }
+
+    IEnumerator MoveRing()
+    {
+        while (true)
+        {
+            yield return StartCoroutine(MoveFromTo(speedPrimer.transform, anchorsLst[listPos].transform, anchorsLst[listPos + 1].transform, speed));
+            if (listPos < anchorsLst.Count - 2)
+            {
+                listPos++;
+            }
+            else
+                break;
+        }
+    }
+    
+    IEnumerator MoveFromTo(Transform objectToMove, Transform a, Transform b, float speed) //Adapted from https://gamedev.stackexchange.com/questions/100535/coroutine-to-move-to-position-passing-the-movement-speed
+    {
+        float step = ((speed / 100) / (a.position - b.position).magnitude) * Time.fixedDeltaTime; //Speed is converted from cm to m
+        float t = 0;
+        while (t <= 1.0f)
+        {
+            t += step; // Goes from 0 to 1, incrementing by step each time
+            objectToMove.position = Vector3.Lerp(a.position, b.position, t); // Move objectToMove closer to b
+            objectToMove.rotation = Quaternion.Lerp(a.rotation, b.rotation, t);
+            yield return new WaitForFixedUpdate();         // Leave the routine and return here in the next frame
+        }
+        objectToMove.position = b.position;
+        objectToMove.rotation = b.rotation;
+    }
+
+    IEnumerator Haptics(float frequency, float amplitude, float duration, bool rightHand, bool leftHand)
+    {
+        if (rightHand) OVRInput.SetControllerVibration(frequency, amplitude, OVRInput.Controller.RTouch);
+        if (leftHand) OVRInput.SetControllerVibration(frequency, amplitude, OVRInput.Controller.LTouch);
+
+        yield return new WaitForSeconds(duration);
+
+        if (rightHand) OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch);
+        if (leftHand) OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.LTouch);
+    }
+
 
 
 }
