@@ -132,25 +132,153 @@ public class RingCollision : MonoBehaviour
     {
 
         if (other.tag != "StartZone" && other.tag != "StopZone")
-        {
+        {            
             //startStopLight.SetActive(false);
             //Debug.Log("Collision with " + other.gameObject);
             loc = other.gameObject.GetComponent<Collider>().ClosestPointOnBounds(transform.position);
             //experimentControllerScript.mistakePrimer.transform.position = loc;
             string dragDir = other.gameObject.tag;
+
+            //bool firstColliderDetected = false, lastColliderDetected = false;
+            int indexOfThisCollider = experimentControllerScript.colliderList.IndexOf(other.gameObject);
+            //Debug.Log("indexOfThisCollider - " + indexOfThisCollider);
+            //if (indexOfThisCollider == 0) firstColliderDetected = true;
+            //if (indexOfThisCollider == experimentControllerScript.colliderList.Count - 1) lastColliderDetected = true;
+
+            float primerLocX = experimentControllerScript.mistakePrimer.transform.position.x;
+            float primerLocY = experimentControllerScript.mistakePrimer.transform.position.y;
+            float primerLocZ = experimentControllerScript.mistakePrimer.transform.position.z;
+            GameObject startAnchorObj = other.gameObject.GetComponent<ColliderExtraInfoScript>().start;
+            GameObject endAnchorObj = other.gameObject.GetComponent<ColliderExtraInfoScript>().end;
+            float startAnchorLocX = startAnchorObj.transform.position.x;
+            float startAnchorLocY = startAnchorObj.transform.position.y;
+            float startAnchorLocZ = startAnchorObj.transform.position.z;
+            float endAnchorLocX = endAnchorObj.transform.position.x;
+            float endAnchorLocY = endAnchorObj.transform.position.y;
+            float endAnchorLocZ = endAnchorObj.transform.position.z;
+            float tiltAngleDelta = 0;
+
             if (dragDir == "x-axis")
             {
-                experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, 0);
+
+                if (Mathf.Abs(primerLocX - startAnchorLocX) < 0.005f)
+                {
+                    //Scale tiltAngleDelta proportional to the difference between primerLocX and startLocX
+                    if (startAnchorObj.name != "Anchor1") //Check if we are at the beginning of the wire so as not to have the primer rotate
+                    {
+                        if (experimentControllerScript.colliderList[indexOfThisCollider - 1].tag == "y-axis")
+                        {
+                            tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocX - startAnchorLocX));
+                            experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, -tiltAngleDelta + 0);
+                        }
+                        else if (experimentControllerScript.colliderList[indexOfThisCollider - 1].tag == "z-axis")
+                        {
+                            tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocX - startAnchorLocX));
+                            experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, tiltAngleDelta + 0, 0);
+                        }
+                    }
+                }
+                else if (Mathf.Abs(primerLocX - endAnchorLocX) < 0.005f)
+                {
+                    if (endAnchorObj.name != "Anchor38") //Check if we are at the end of the wire so as not to have the primer rotate
+                    {
+                        if (experimentControllerScript.colliderList[indexOfThisCollider + 1].tag == "y-axis")
+                        {
+                            tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocX - endAnchorLocX));
+                            experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, tiltAngleDelta + 0);
+                        }
+                        else if (experimentControllerScript.colliderList[indexOfThisCollider + 1].tag == "z-axis")
+                        {
+                            tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocX - endAnchorLocX));
+                            experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, tiltAngleDelta + 0, 0);
+                        }
+                    }
+                }
+                else
+                {
+                    experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, 0);
+                }
+                
+                
                 experimentControllerScript.mistakePrimer.transform.position = new Vector3(loc.x, other.gameObject.transform.position.y, other.gameObject.transform.position.z);
             }
             else if (dragDir == "y-axis")
             {
-                experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, 90);
+                if (Mathf.Abs(primerLocY - startAnchorLocY) < 0.005f)
+                {
+                    //Scale tiltAngleDelta proportional to the difference between primerLocX and startLocX
+                    if (experimentControllerScript.colliderList[indexOfThisCollider - 1].tag == "x-axis")
+                    {
+                        tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocY - startAnchorLocY));
+                        experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, -tiltAngleDelta + 90);
+                    }
+                    else if (experimentControllerScript.colliderList[indexOfThisCollider - 1].tag == "z-axis")
+                    {
+                        tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocY - startAnchorLocY));
+                        experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(-tiltAngleDelta + 0, 0, 90);
+                    }
+                }
+                else if (Mathf.Abs(primerLocY - endAnchorLocY) < 0.005f)
+                {
+                    if (experimentControllerScript.colliderList[indexOfThisCollider + 1].tag == "z-axis")
+                    {
+                        tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocY - endAnchorLocY));
+                        experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(tiltAngleDelta + 0, 0, 90);
+                    }
+                    if (experimentControllerScript.colliderList[indexOfThisCollider + 1].tag == "x-axis")
+                    {
+                        tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocY - endAnchorLocY));
+                        experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, tiltAngleDelta + 90);
+                    }
+                }
+                else
+                {
+                    experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, 90);
+                }
+
+
                 experimentControllerScript.mistakePrimer.transform.position = new Vector3(other.gameObject.transform.position.x + 0.015f, loc.y, other.gameObject.transform.position.z);
             }
             else if (dragDir == "z-axis")
             {
-                experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 90, 0);
+                if (Mathf.Abs(primerLocZ - startAnchorLocZ) < 0.005f)
+                {
+                    //Scale tiltAngleDelta proportional to the difference between primerLocX and startLocX
+                    if (experimentControllerScript.colliderList[indexOfThisCollider - 1].tag == "y-axis")
+                    {
+                        //Debug.Log("z to y before");
+                        tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocZ - startAnchorLocZ));
+                        //Debug.Log("tiltAngleDelta" + tiltAngleDelta);
+                        experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 90, -tiltAngleDelta + 0);
+                    }
+                    else if (experimentControllerScript.colliderList[indexOfThisCollider - 1].tag == "x-axis")
+                    {
+                        //Debug.Log("z to y before");
+                        tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocZ - startAnchorLocZ));
+                        //Debug.Log("tiltAngleDelta" + tiltAngleDelta);
+                        experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, -tiltAngleDelta + 90, 0);
+                    }
+                }
+                else if (Mathf.Abs(primerLocZ - endAnchorLocZ) < 0.005f)
+                {
+                    if (experimentControllerScript.colliderList[indexOfThisCollider + 1].tag == "y-axis")
+                    {
+                        //Debug.Log("z to y after");
+                        tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocZ - endAnchorLocZ));
+                        experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 90, tiltAngleDelta + 0);
+                    }
+                    else if (experimentControllerScript.colliderList[indexOfThisCollider + 1].tag == "x-axis")
+                    {
+                        //Debug.Log("z to y after");
+                        tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocZ - endAnchorLocZ));
+                        experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, -tiltAngleDelta + 90, 0);
+                    }
+                }
+                else
+                {
+                    experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 90, 0);
+                }
+                //experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 90, 0);
                 experimentControllerScript.mistakePrimer.transform.position = new Vector3(other.gameObject.transform.position.x + 0.015f, other.gameObject.transform.position.y, loc.z);
             }
         }

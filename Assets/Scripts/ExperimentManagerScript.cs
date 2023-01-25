@@ -21,11 +21,13 @@ public enum ExperimentState
 public class ExperimentManagerScript : MonoBehaviour
 {
     List<GameObject> anchorsLst;
+    public List<GameObject> colliderList;
     float fraction;
     int listPos;
     public GameObject speedPrimer, mistakePrimer;
     public float speed; //cm per second
     public GameObject levelAnchorsRoot;
+    public GameObject levelCollidersRoot;
     public GameObject levelObj;
 
     Vector3 detachPt;
@@ -131,12 +133,18 @@ public class ExperimentManagerScript : MonoBehaviour
         speed = 0;
 
         anchorsLst = new List<GameObject>();
+        colliderList = new List<GameObject>();
         //StartCoroutine(MoveRing());
         //StartCoroutine(MoveFromTo(ring.transform,anchorsLst[1].transform, anchorsLst[2].transform, 0.01f));
         //Assign all child gameobjects of primerAnchorRoot to anchorsLst
         for (int i = 0; i < levelAnchorsRoot.transform.childCount; i++)
         {
             anchorsLst.Add(levelAnchorsRoot.transform.GetChild(i).gameObject);
+        }
+
+        for (int i = 0; i < levelCollidersRoot.transform.childCount; i++)
+        {
+            colliderList.Add(levelCollidersRoot.transform.GetChild(i).gameObject);
         }
 
         expState = ExperimentState.TRAINING;
