@@ -6,6 +6,7 @@ using UnityEditor.PackageManager;
 using UnityEngine.UI;
 using System.Security.Policy;
 using System.ComponentModel.Design;
+using Unity.Mathematics;
 
 public enum ExperimentState
 {
@@ -67,7 +68,17 @@ public class ExperimentManagerScript : MonoBehaviour
     public GameObject levelTimeResultsObj;
     public int levelTimeResult;
     public GameObject surveyPanel;
-    public Slider speedSESlider, mistakeSESlider;
+    public GameObject arrowObj;
+    public GameObject mistakeTimeIndicatorObj;    
+
+    //VR in-game UI
+    public GameObject speedSEsliderObj, mistakeSEsliderObj;
+    public GameObject speedSEsliderStartLocObj, speedSEsliderEndLocObj;
+    public GameObject mistakeSEsliderStartLocObj, mistakeSEsliderEndLocObj;
+    public ArrowClickScript arrow;
+    GameObject touchedObj;
+    float speedSESliderXMin, speedSESliderXMax;
+    float mistakeSESliderXMin, mistakeSESliderXMax;
 
     public GameObject laserPointerObj;
     public Quaternion hookRootDefaultRot;
@@ -80,14 +91,16 @@ public class ExperimentManagerScript : MonoBehaviour
     public GameObject ghostRightHandController;
     public GameObject solidRightHandController;
     //public GameObject ghost_wire;
-    public GameObject hookRoot;
+    public GameObject hookRoot;   
 
     public float lastTrainingIterationSpeed, nextTrainingIterationSpeed;
+    public float lastTrainingIterationMistakeTime, nextTrainingIterationMistakeTime;
+    public int mistakeStartTime, mistakeEndTime;
 
     public SimpleTcpClient client;
 
     //SE related
-    float speedSEVal, mistakeSEVal;
+    int speedSEVal, mistakeSEVal;
 
     private void Awake()
     {
@@ -147,7 +160,8 @@ public class ExperimentManagerScript : MonoBehaviour
             colliderList.Add(levelCollidersRoot.transform.GetChild(i).gameObject);
         }
 
-        expState = ExperimentState.TRAINING;
+        //expState = ExperimentState.TRAINING;
+        changeState("TRAINING");
 
         //beepsound.mute = true;
         //currLevel = 1;
@@ -167,7 +181,7 @@ public class ExperimentManagerScript : MonoBehaviour
         //Debug.Log("startPositions[currLevel - 1].transform.position" + transform.TransformPoint(startPositions[currLevel - 1]));
         client = new SimpleTcpClient().Connect("127.0.0.1", 8089);
 
-        changeState("INIT");
+        
 
 
     }
@@ -176,6 +190,7 @@ public class ExperimentManagerScript : MonoBehaviour
     
     private void FixedUpdate()
     {
+        //Debug.Log("expState" + expState);
         if (client == null)
         {
             iMotionsConnText.color = Color.red;
@@ -195,7 +210,7 @@ public class ExperimentManagerScript : MonoBehaviour
 
         if (expState == ExperimentState.TRAINING || expState == ExperimentState.VR_TUTORIAL)
         {
-            message = null;
+            message = null; //Since we are not using physical test here
             if (isDetached && feedbackEnabled)
             {
                 mistakeLineObj.SetActive(true);
@@ -239,7 +254,37 @@ public class ExperimentManagerScript : MonoBehaviour
                 //Debug.Log("isDetached = false");
             }
         }
-        else
+        else if(expState == ExperimentState.TRAINING_SELF_EFFICACY)
+        {
+            //Debug.Log("Training Self Efficacy");
+            message = null; //Since we are not using physical test here
+            if (arrow.touchingObj != null)
+            {
+                touchedObj = arrow.touchingObj;
+                if (touchedObj == speedSEsliderObj)
+                {
+                    print("Touching speed SE slider line");
+                    //int newX = (int)math.remap(arrow.xMin, arrow.xMax, formUIScript.xMin, formUIScript.xMax, hapticDeviceArrow.clickLoc.x);
+                    //int clampedX = (int)math.clamp(newX, formUIScript.xMin, formUIScript.xMax);
+                    speedSESliderXMin = speedSEsliderStartLocObj.transform.position.x;
+                    speedSESliderXMax = speedSEsliderEndLocObj.transform.position.x;
+                    int selectedVal = (int)math.remap(speedSESliderXMin, speedSESliderXMax, 1, 100, arrow.clickLoc.x);
+                    speedSEVal = (int)math.clamp(selectedVal, 1, 100);
+                    print("Selected Speed SE:" + speedSEVal);
+                    
+                }
+                else if (touchedObj == mistakeSEsliderObj)
+                {
+                    print("Touching mistake SE slider line");
+                    mistakeSESliderXMin = mistakeSEsliderStartLocObj.transform.position.x;
+                    mistakeSESliderXMax = mistakeSEsliderEndLocObj.transform.position.x;
+                    int selectedVal = (int)math.remap(mistakeSESliderXMin, mistakeSESliderXMax, 1, 100, arrow.clickLoc.x);
+                    mistakeSEVal = (int)math.clamp(selectedVal, 1, 100);
+                    print("Selected Mistake SE:" + mistakeSEVal);
+                }
+            }
+        }
+        else //Physical test
         {
             message = testArduinoSerialController.ReadSerialMessage();
         }
@@ -303,6 +348,7 @@ public class ExperimentManagerScript : MonoBehaviour
         //Debug.Log("isDetached = true, collision with " + tag);
         isDetached = true;
         currDragDir = tag; //x-dir, y-dir or z-dir
+        mistakeStartTime = (int)Time.time;
 
         detachPt = _detachPt;
         detachPivot.transform.position = detachPt;
@@ -317,6 +363,12 @@ public class ExperimentManagerScript : MonoBehaviour
         //Debug.Log("isDetached = false, collision with " + tag);
         isDetached = false;
         OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch);
+
+        mistakeEndTime = (int)Time.time;
+       
+        //mistake
+
+        lastTrainingIterationMistakeTime+= (mistakeEndTime - mistakeStartTime);
 
         ghostRightHandController.SetActive(false);
 
@@ -522,14 +574,14 @@ public class ExperimentManagerScript : MonoBehaviour
 
             case "TRAINING_SELF_EFFICACY":
                 //env.SetActive(false);
-                hookRoot.SetActive(false);
-                levelTimeResultsObj.SetActive(false);
+                //hookRoot.SetActive(false);
+                //levelTimeResultsObj.SetActive(false);
                 surveyPanel.SetActive(true);
                 //formHandler.startSurveyMediumPost();
-                modeTxt.text = "Post Survey";
+                modeTxt.text = "SE";
                 expState = ExperimentState.TRAINING_SELF_EFFICACY;
-                if (client != null)
-                    client.Write("M;1;;;medium_post_survey_started;\r\n");
+                //if (client != null)
+                //    client.Write("M;1;;;medium_post_survey_started;\r\n");
                 break;
 
 
@@ -578,37 +630,46 @@ public class ExperimentManagerScript : MonoBehaviour
     public void decideNextTrial()
     {
         surveyPanel.SetActive(false);
-        
-        speedSEVal = speedSESlider.value;
-        mistakeSEVal = mistakeSESlider.value;
+        expState = ExperimentState.TRAINING;
+
+        //speedSEVal = speedSESlider.value;
+        //mistakeSEVal = mistakeSESlider.value;
 
         //Logic for selecting next primer
         if (speedSEVal > mistakeSEVal)
         {
+            print("Speed SE is higher");
             selectMistakePrimer();
         }
         else if (speedSEVal < mistakeSEVal)
         {
+            print("Mistake SE is higher");
             selectSpeedPrimer();
         }
         else //Equal so randomly choose
         {
             //Randomly choose between invoking selectSpeedPrimer or selectMistakePrimer
-            
-            float rand = Random.Range(0, 9);
+            print("Mistake SE and Speed SE are equal. Randomly choosing between speed and mistake primer - ");
+            float rand = UnityEngine.Random.Range(0, 9);
             if ((int)rand % 2 == 0)
             {
+                print("Speed primer chosen");
                 selectSpeedPrimer();
             }
             else
             {
+                print("Mistake primer chosen");
                 selectMistakePrimer();
             }
         }
 
+
+
         //Reset sliders to middle
-        speedSESlider.value = (speedSESlider.maxValue + speedSESlider.minValue) / 2;
-        mistakeSESlider.value = (mistakeSESlider.maxValue + mistakeSESlider.minValue) / 2;
+        //speedSESlider.value = (speedSESlider.maxValue + speedSESlider.minValue) / 2;
+        //mistakeSESlider.value = (mistakeSESlider.maxValue + mistakeSESlider.minValue) / 2;
+        arrowObj.SetActive(false);
+        arrow.resetSlider();
     }
     
     public void selectSpeedPrimer()
@@ -625,7 +686,9 @@ public class ExperimentManagerScript : MonoBehaviour
 
     public void selectMistakePrimer()
     {
-        Debug.Log("Mistake Primer Selected");
+        Debug.Log("Mistake Primer Selected");        
+        nextTrainingIterationMistakeTime = lastTrainingIterationMistakeTime * 0.9f; // Decrease mistake time by 10%
+        lastTrainingIterationMistakeTime = 0;
         mistakePrimer.SetActive(true);
         speedPrimer.SetActive(false);
     }

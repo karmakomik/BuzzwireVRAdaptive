@@ -16,7 +16,8 @@ public class RingCollision : MonoBehaviour
     private Vector3 mistakeVector;
     Vector3 mistakeDirection;
     int levelStartTime, levelEndTime;
-    
+
+
     //public GameObject hapticPointer;
     Vector3 normForceVector, prevNormForceVector;
 
@@ -37,6 +38,8 @@ public class RingCollision : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        new Ray(experimentControllerScript.solidRightHandController.transform.position, experimentControllerScript.solidRightHandController.transform.forward);
+        
         if (experimentControllerScript.isFeedbackOnNow)
         {
             //mistakeLineObj.GetComponent<LineRenderer>().;
@@ -45,9 +48,9 @@ public class RingCollision : MonoBehaviour
             experimentControllerScript.mistakeLineObj.GetComponent<LineRenderer>().SetPosition(1, experimentControllerScript.projectedHookPos);
             mistakeVector = experimentControllerScript.projectedHookPos - transform.position;
             //print("mistakeVector.magnitude" + mistakeVector.magnitude);
-            float distance = mistakeVector.magnitude;
-            float intensity = math.remap(0, 0.1f, 0, 1, distance);
-            float clampedIntensity = math.clamp(intensity, 0, 1);
+            //float distance = mistakeVector.magnitude;
+            //float intensity = math.remap(0, 0.1f, 0, 1, distance);
+            /*float clampedIntensity = math.clamp(intensity, 0, 1);
             if (clampedIntensity < 0.4f)
             {
                 experimentControllerScript.mistakeLineObj.GetComponent<LineRenderer>().startColor = Color.black;
@@ -57,7 +60,7 @@ public class RingCollision : MonoBehaviour
             {
                 experimentControllerScript.mistakeLineObj.GetComponent<LineRenderer>().startColor = Color.red;
                 experimentControllerScript.mistakeLineObj.GetComponent<LineRenderer>().endColor = Color.red;
-            }
+            }*/
             //experimentControllerScript.changeIntensityOfGhost(clampedIntensity);
 
             //print("distance - " + distance);
@@ -105,8 +108,11 @@ public class RingCollision : MonoBehaviour
             experimentControllerScript.doControllerReattachOperations("null");
             experimentControllerScript.mistakeLineObj.SetActive(false);
             experimentControllerScript.stopMistakeFeedback();
-            experimentControllerScript.surveyPanel.SetActive(true);
-            
+
+            //Cast ray from solidRightHandController
+            //RaycastHit hit;
+            //Ray ray = new Ray(experimentControllerScript.solidRightHandController.transform.position, experimentControllerScript.solidRightHandController.transform.forward);
+
             //experimentControllerScript.changeIntensityOfGhost(1);
             experimentControllerScript.feedbackEnabled = false;
             //experimentControllerScript.startStopRefController.SetActive(true);
@@ -161,7 +167,8 @@ public class RingCollision : MonoBehaviour
             if (dragDir == "x-axis")
             {
 
-                if (Mathf.Abs(primerLocX - startAnchorLocX) < 0.005f)
+                //Set rotation of the mistake primer
+                if (Mathf.Abs(primerLocX - startAnchorLocX) < 0.005f) //Check if ring is close to the beginning of the wire segment
                 {
                     //Scale tiltAngleDelta proportional to the difference between primerLocX and startLocX
                     if (startAnchorObj.name != "Anchor1") //Check if we are at the beginning of the wire so as not to have the primer rotate
@@ -178,7 +185,7 @@ public class RingCollision : MonoBehaviour
                         }
                     }
                 }
-                else if (Mathf.Abs(primerLocX - endAnchorLocX) < 0.005f)
+                else if (Mathf.Abs(primerLocX - endAnchorLocX) < 0.005f) //Check if ring is close to the end of the wire segment
                 {
                     if (endAnchorObj.name != "Anchor38") //Check if we are at the end of the wire so as not to have the primer rotate
                     {
@@ -198,8 +205,8 @@ public class RingCollision : MonoBehaviour
                 {
                     experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, 0);
                 }
-                
-                
+
+                //Set position of mistakePrimer
                 experimentControllerScript.mistakePrimer.transform.position = new Vector3(loc.x, other.gameObject.transform.position.y, other.gameObject.transform.position.z);
             }
             else if (dragDir == "y-axis")
@@ -236,26 +243,20 @@ public class RingCollision : MonoBehaviour
                     experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 0, 90);
                 }
 
-
                 experimentControllerScript.mistakePrimer.transform.position = new Vector3(other.gameObject.transform.position.x + 0.015f, loc.y, other.gameObject.transform.position.z);
             }
             else if (dragDir == "z-axis")
             {
                 if (Mathf.Abs(primerLocZ - startAnchorLocZ) < 0.005f)
-                {
-                    //Scale tiltAngleDelta proportional to the difference between primerLocX and startLocX
+                {                    
                     if (experimentControllerScript.colliderList[indexOfThisCollider - 1].tag == "y-axis")
                     {
-                        //Debug.Log("z to y before");
                         tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocZ - startAnchorLocZ));
-                        //Debug.Log("tiltAngleDelta" + tiltAngleDelta);
                         experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 90, -tiltAngleDelta + 0);
                     }
                     else if (experimentControllerScript.colliderList[indexOfThisCollider - 1].tag == "x-axis")
                     {
-                        //Debug.Log("z to y before");
                         tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocZ - startAnchorLocZ));
-                        //Debug.Log("tiltAngleDelta" + tiltAngleDelta);
                         experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, -tiltAngleDelta + 90, 0);
                     }
                 }
@@ -263,13 +264,11 @@ public class RingCollision : MonoBehaviour
                 {
                     if (experimentControllerScript.colliderList[indexOfThisCollider + 1].tag == "y-axis")
                     {
-                        //Debug.Log("z to y after");
                         tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocZ - endAnchorLocZ));
                         experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 90, tiltAngleDelta + 0);
                     }
                     else if (experimentControllerScript.colliderList[indexOfThisCollider + 1].tag == "x-axis")
                     {
-                        //Debug.Log("z to y after");
                         tiltAngleDelta = math.remap(0, 0.005f, 45, 0, Mathf.Abs(primerLocZ - endAnchorLocZ));
                         experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, -tiltAngleDelta + 90, 0);
                     }
@@ -278,7 +277,7 @@ public class RingCollision : MonoBehaviour
                 {
                     experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 90, 0);
                 }
-                //experimentControllerScript.mistakePrimer.transform.rotation = Quaternion.Euler(0, 90, 0);
+                
                 experimentControllerScript.mistakePrimer.transform.position = new Vector3(other.gameObject.transform.position.x + 0.015f, other.gameObject.transform.position.y, loc.z);
             }
         }
@@ -342,12 +341,21 @@ public class RingCollision : MonoBehaviour
             Debug.Log("Level finished!");
             if (experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
             {
+
+
                 levelEndTime = (int)Time.time;
                 experimentControllerScript.lastTrainingIterationSpeed = (float) 57 / (float)(levelEndTime - levelStartTime);
-                Debug.Log("Last TCT was - " + (float)(levelEndTime - levelStartTime));
+                //experimentControllerScript.lastTrainingIterationMistakeTime = experimentControllerScript.mistakeEndTime - experimentControllerScript.mistakeStartTime;
+
+                //Debug.Log("Last TCT was - " + (float)(levelEndTime - levelStartTime));
                 Debug.Log("Last speed was - " + experimentControllerScript.lastTrainingIterationSpeed);
+                Debug.Log("Last mistake time was - " + experimentControllerScript.lastTrainingIterationMistakeTime);
                 experimentControllerScript.changeSpeedTxt();
                 experimentControllerScript.showLevelResult(((int)Time.time - levelStartTime));
+
+                experimentControllerScript.surveyPanel.SetActive(true);
+                experimentControllerScript.expState = ExperimentState.TRAINING_SELF_EFFICACY;
+                experimentControllerScript.arrowObj.SetActive(true);
             }
             //startStopLight.SetActive(true);
             experimentControllerScript.feedbackEnabled = false;
