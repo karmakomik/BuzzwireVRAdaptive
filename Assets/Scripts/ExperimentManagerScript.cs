@@ -69,9 +69,10 @@ public class ExperimentManagerScript : MonoBehaviour
     public int levelTimeResult;
     public GameObject surveyPanel;
     public GameObject arrowObj;
-    public GameObject mistakeTimeIndicatorObj;    
+    public GameObject mistakeTimeIndicatorObj;
 
     //VR in-game UI
+    public GameObject speedSERoot, mistakeSERoot;
     public GameObject speedSEsliderObj, mistakeSEsliderObj;
     public GameObject speedSEsliderStartLocObj, speedSEsliderEndLocObj;
     public GameObject mistakeSEsliderStartLocObj, mistakeSEsliderEndLocObj;
@@ -91,11 +92,14 @@ public class ExperimentManagerScript : MonoBehaviour
     public GameObject ghostRightHandController;
     public GameObject solidRightHandController;
     //public GameObject ghost_wire;
-    public GameObject hookRoot;   
+    public GameObject hookRoot;
+    public Vector3 mistakePrimerStartRefPos;
 
     public float lastTrainingIterationSpeed, nextTrainingIterationSpeed;
-    public float lastTrainingIterationMistakeTime, nextTrainingIterationMistakeTime;
+    public float currTrainingIterationMistakeTime, lastTrainingIterationMistakeTime, nextTrainingIterationMistakeTime;
     public int mistakeStartTime, mistakeEndTime;
+
+    
 
     public SimpleTcpClient client;
 
@@ -171,6 +175,7 @@ public class ExperimentManagerScript : MonoBehaviour
         detachPivot = new GameObject("DetachPivot");
         detachPivot.transform.position = Vector3.zero;
         oldGhostPos = ghostRightHandController.transform.position;
+        mistakePrimerStartRefPos = mistakePrimer.transform.position;
 
         //startStopRefController.transform.position = startPositions[currLevel - 1];
         solidRightHandController.SetActive(false);
@@ -263,24 +268,24 @@ public class ExperimentManagerScript : MonoBehaviour
                 touchedObj = arrow.touchingObj;
                 if (touchedObj == speedSEsliderObj)
                 {
-                    print("Touching speed SE slider line");
+                    //print("Touching speed SE slider line");
                     //int newX = (int)math.remap(arrow.xMin, arrow.xMax, formUIScript.xMin, formUIScript.xMax, hapticDeviceArrow.clickLoc.x);
                     //int clampedX = (int)math.clamp(newX, formUIScript.xMin, formUIScript.xMax);
                     speedSESliderXMin = speedSEsliderStartLocObj.transform.position.x;
                     speedSESliderXMax = speedSEsliderEndLocObj.transform.position.x;
                     int selectedVal = (int)math.remap(speedSESliderXMin, speedSESliderXMax, 1, 100, arrow.clickLoc.x);
                     speedSEVal = (int)math.clamp(selectedVal, 1, 100);
-                    print("Selected Speed SE:" + speedSEVal);
+                    //print("Selected Speed SE:" + speedSEVal);
                     
                 }
                 else if (touchedObj == mistakeSEsliderObj)
                 {
-                    print("Touching mistake SE slider line");
+                    //print("Touching mistake SE slider line");
                     mistakeSESliderXMin = mistakeSEsliderStartLocObj.transform.position.x;
                     mistakeSESliderXMax = mistakeSEsliderEndLocObj.transform.position.x;
                     int selectedVal = (int)math.remap(mistakeSESliderXMin, mistakeSESliderXMax, 1, 100, arrow.clickLoc.x);
                     mistakeSEVal = (int)math.clamp(selectedVal, 1, 100);
-                    print("Selected Mistake SE:" + mistakeSEVal);
+                    //print("Selected Mistake SE:" + mistakeSEVal);
                 }
             }
         }
@@ -365,10 +370,15 @@ public class ExperimentManagerScript : MonoBehaviour
         OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch);
 
         mistakeEndTime = (int)Time.time;
-       
+
         //mistake
 
-        lastTrainingIterationMistakeTime+= (mistakeEndTime - mistakeStartTime);
+        if(tag!="null") currTrainingIterationMistakeTime += (mistakeEndTime - mistakeStartTime);
+        print("Current mistake time - " + currTrainingIterationMistakeTime);
+        print("Previous mistake time - " + lastTrainingIterationMistakeTime);
+
+        mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount = ((float)currTrainingIterationMistakeTime / (float)lastTrainingIterationMistakeTime);
+        Debug.Log("Mistake percentage: " + mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount);
 
         ghostRightHandController.SetActive(false);
 
@@ -577,6 +587,8 @@ public class ExperimentManagerScript : MonoBehaviour
                 //hookRoot.SetActive(false);
                 //levelTimeResultsObj.SetActive(false);
                 surveyPanel.SetActive(true);
+                hookRoot.SetActive(false);
+                arrowObj.SetActive(true);
                 //formHandler.startSurveyMediumPost();
                 modeTxt.text = "SE";
                 expState = ExperimentState.TRAINING_SELF_EFFICACY;
@@ -662,13 +674,11 @@ public class ExperimentManagerScript : MonoBehaviour
                 selectMistakePrimer();
             }
         }
-
-
-
         //Reset sliders to middle
         //speedSESlider.value = (speedSESlider.maxValue + speedSESlider.minValue) / 2;
         //mistakeSESlider.value = (mistakeSESlider.maxValue + mistakeSESlider.minValue) / 2;
         arrowObj.SetActive(false);
+        hookRoot.SetActive(true);        
         arrow.resetSlider();
     }
     
@@ -687,8 +697,11 @@ public class ExperimentManagerScript : MonoBehaviour
     public void selectMistakePrimer()
     {
         Debug.Log("Mistake Primer Selected");        
-        nextTrainingIterationMistakeTime = lastTrainingIterationMistakeTime * 0.9f; // Decrease mistake time by 10%
-        lastTrainingIterationMistakeTime = 0;
+        lastTrainingIterationMistakeTime = currTrainingIterationMistakeTime * 0.9f; // Decrease mistake time by 10%
+        Debug.Log("Last mistake time was - " + lastTrainingIterationMistakeTime);
+        currTrainingIterationMistakeTime = 0;
+        mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount = 0;
+        mistakePrimer.transform.position = mistakePrimerStartRefPos;
         mistakePrimer.SetActive(true);
         speedPrimer.SetActive(false);
     }

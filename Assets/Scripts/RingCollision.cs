@@ -349,13 +349,14 @@ public class RingCollision : MonoBehaviour
 
                 //Debug.Log("Last TCT was - " + (float)(levelEndTime - levelStartTime));
                 Debug.Log("Last speed was - " + experimentControllerScript.lastTrainingIterationSpeed);
-                Debug.Log("Last mistake time was - " + experimentControllerScript.lastTrainingIterationMistakeTime);
+                
                 experimentControllerScript.changeSpeedTxt();
                 experimentControllerScript.showLevelResult(((int)Time.time - levelStartTime));
 
-                experimentControllerScript.surveyPanel.SetActive(true);
-                experimentControllerScript.expState = ExperimentState.TRAINING_SELF_EFFICACY;
-                experimentControllerScript.arrowObj.SetActive(true);
+                experimentControllerScript.changeState("TRAINING_SELF_EFFICACY");
+                //experimentControllerScript.surveyPanel.SetActive(true);
+                //experimentControllerScript.expState = ExperimentState.TRAINING_SELF_EFFICACY;
+
             }
             //startStopLight.SetActive(true);
             experimentControllerScript.feedbackEnabled = false;

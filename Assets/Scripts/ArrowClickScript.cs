@@ -29,7 +29,7 @@ public class ArrowClickScript : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        Debug.Log("Arrow Clicked " + other.gameObject.name);
+        //Debug.Log("Arrow Clicked " + other.gameObject.name);
 
         touchingObj = other.gameObject;
     }
