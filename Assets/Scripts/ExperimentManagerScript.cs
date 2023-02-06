@@ -14,6 +14,7 @@ public enum ExperimentState
     BASELINE,
     PRE_TEST,
     VR_TUTORIAL,
+    VR_TEST,
     TRAINING,
     TRAINING_SELF_EFFICACY,
     POST_TEST
