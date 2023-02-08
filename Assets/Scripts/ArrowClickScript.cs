@@ -10,6 +10,7 @@ public class ArrowClickScript : MonoBehaviour
     public Vector3 clickLoc;
 
     public GameObject speedSEsliderHandle, mistakesSEsliderHandle;
+    public GameObject speedSEsliderLine, mistakesSEsliderLine;
 
     public float xMin, xMax;
 
@@ -36,9 +37,8 @@ public class ArrowClickScript : MonoBehaviour
 
     public void resetSlider()
     {
-        speedSEsliderHandle.transform.position = speedSEsliderHandleInitPos;
-        mistakesSEsliderHandle.transform.position = mistakesSEsliderHandleInitPos;
-
+        speedSEsliderHandle.transform.position = speedSEsliderLine.transform.position;
+        mistakesSEsliderHandle.transform.position = mistakesSEsliderLine.transform.position;
     }
 
     void OnTriggerStay(Collider other)

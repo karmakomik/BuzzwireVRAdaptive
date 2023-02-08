@@ -4,7 +4,8 @@ This repository contains the Unity and Arduino project files developed for the e
 
 # Software Requirements
 
-- Unity 2020.3.26f1
+- Unity 2021.3.16f1
+- iMotions 9.2
 
 # Hardware Requirements
 
@@ -13,7 +14,7 @@ This repository contains the Unity and Arduino project files developed for the e
 
 ## Authors and acknowledgments
 
-- Programming (Unity/Arduino) - Unnikrishnan Radhakrishnan (AU)
+- Programming (Unity/Arduino) - Unnikrishnan Radhakrishnan 
 - Design of experiment - Lasse Lui Frandsen, Unnikrishnan Radhakrishnan, Konstantinos Koumaditis, Francesco Chinello
 - Hardware - Francesco Chinello, Unnikrishnan Radhakrishnan
 
