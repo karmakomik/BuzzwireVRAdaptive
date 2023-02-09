@@ -8,6 +8,8 @@ using System.Security.Policy;
 using System.ComponentModel.Design;
 using Unity.Mathematics;
 using System.Security.Cryptography;
+using System.IO;
+using UnityEditor;
 
 public enum ExperimentState
 {
@@ -23,8 +25,19 @@ public enum ExperimentState
     POST_TEST
 };
 
+public enum ExperimentalCondition
+{
+    CONTROL,
+    ADAPTIVE
+}
+
+
 public class ExperimentManagerScript : MonoBehaviour
 {
+    static ExperimentManagerScript thisObj;
+
+    public static ExperimentalCondition expCondition;
+
     List<GameObject> anchorsLst;
     public List<GameObject> colliderList;
 
@@ -66,7 +79,7 @@ public class ExperimentManagerScript : MonoBehaviour
     //public GameObject restOverIndicator;
     public GameObject configMenu;
     public Slider avatar_x_slider, avatar_y_slider, avatar_z_slider, hapticEnv_x_slider, hapticEnv_y_slider, hapticEnv_z_slider;
-    public TMPro.TMP_Text currSpeedTxt, prevSpeedTxt;
+    public TMPro.TMP_Text currSpeedTxt, prevSpeedTxt, currTrainingIterationTxt;
 
     //VR UI
     public GameObject levelTimeResultsObj;
@@ -76,7 +89,7 @@ public class ExperimentManagerScript : MonoBehaviour
     public GameObject mistakeTimeIndicatorObj;
 
     //VR in-game UI
-    public GameObject speedSERoot, mistakeSERoot;
+    public GameObject speedSERoot, mistakeSERoot, seOkButtonObj;
     public GameObject speedSEsliderObj, mistakeSEsliderObj;
     public GameObject speedSEsliderStartLocObj, speedSEsliderEndLocObj;
     public GameObject mistakeSEsliderStartLocObj, mistakeSEsliderEndLocObj;
@@ -84,6 +97,7 @@ public class ExperimentManagerScript : MonoBehaviour
     GameObject touchedObj;
     float speedSESliderXMin, speedSESliderXMax;
     float mistakeSESliderXMin, mistakeSESliderXMax;
+    public GameObject instructionPanelObj, mistakePrimerInstructionTxtObj, speedPrimerInstructionTxtObj, okButtonObj;
 
     public GameObject laserPointerObj;
     public Quaternion hookRootDefaultRot;
@@ -93,18 +107,19 @@ public class ExperimentManagerScript : MonoBehaviour
 
     public ExperimentState expState;
     int currLevel;
+    int mistakeLevelCount, speedLevelCount;
 
     public GameObject ghostRightHandController;
     public GameObject solidRightHandController;
     //public GameObject ghost_wire;
     public GameObject hookRoot;
     public Vector3 mistakePrimerStartRefPos;
-
+    
     public float lastTrainingIterationSpeed, nextTrainingIterationSpeed;
     public float currTrainingIterationMistakeTime, lastTrainingIterationMistakeTime, nextTrainingIterationMistakeTime;
-    public int mistakeStartTime, mistakeEndTime;
+    public float mistakeStartTime, mistakeEndTime;
 
-    
+    public StreamWriter dataFileWriter;
 
     public SimpleTcpClient client;
 
@@ -113,6 +128,7 @@ public class ExperimentManagerScript : MonoBehaviour
 
     private void Awake()
     {
+        thisObj = this;
         testArduinoSerialController.portName = PlayerPrefs.GetString("testCOMPort", "not_set");
 
         Debug.Log("Test COM port set - " + testArduinoSerialController.portName);
@@ -153,6 +169,15 @@ public class ExperimentManagerScript : MonoBehaviour
         lastTrainingIterationSpeed = 1f;
         speed = 0;
         currLevel = 0;
+        currTrainingIterationMistakeTime = 0;
+        mistakeLevelCount = speedLevelCount = 0;
+
+        expCondition = ExperimentalCondition.ADAPTIVE;
+
+        if (expCondition == ExperimentalCondition.CONTROL)
+            conditionTxt.text = "Control";
+        else if (expCondition == ExperimentalCondition.ADAPTIVE)
+            conditionTxt.text = "Adaptive";
 
         anchorsLst = new List<GameObject>();
         colliderList = new List<GameObject>();
@@ -168,7 +193,7 @@ public class ExperimentManagerScript : MonoBehaviour
             colliderList.Add(levelCollidersRoot.transform.GetChild(i).gameObject);
         }
 
-        changeState("VR_PRE_TEST");
+        changeState("PRE_TEST");
 
         solidRightHandControllerDefaultRot = solidRightHandController.transform.localRotation;
         solidRightHandControllerDefaultPos = solidRightHandController.transform.localPosition;
@@ -181,11 +206,27 @@ public class ExperimentManagerScript : MonoBehaviour
         solidRightHandController.SetActive(false);
         ghostRightHandController.SetActive(true);
 
+        //File write
+        if (!Directory.Exists(Application.persistentDataPath + "/AdaptiveExperimentData"))
+        {
+            Directory.CreateDirectory(Application.persistentDataPath + "/AdaptiveExperimentData");
+        }
+        dataFileWriter = new StreamWriter(Application.persistentDataPath + "/AdaptiveExperimentData/" + System.DateTime.Now.ToString("Data_dd_MMMM_yyyy_HH_mm_ss") + ".txt");
+        dataFileWriter.WriteLine(expCondition.ToString());
+        EditorApplication.playModeStateChanged += LogPlayModeState;
+
 
         client = new SimpleTcpClient().Connect("127.0.0.1", 8089);
     }
 
-    
+
+    private static void LogPlayModeState(PlayModeStateChange state)
+    {
+        thisObj.dataFileWriter.Flush();
+        Debug.Log(state);
+    }
+
+
     private void FixedUpdate()
     {
         //Debug.Log("expState" + expState);
@@ -209,8 +250,14 @@ public class ExperimentManagerScript : MonoBehaviour
         if (expState == ExperimentState.SPEED_TRAINING || expState == ExperimentState.MISTAKE_TRAINING || expState == ExperimentState.VR_PRE_TEST || expState == ExperimentState.VR_POST_TEST || expState == ExperimentState.VR_TUTORIAL)
         {
             message = null; //Since we are not using physical test here
+            //print("isDetached:" + isDetached + "feedbackEnabled:" + feedbackEnabled);
             if (isDetached && feedbackEnabled)
             {
+                if (expState == ExperimentState.MISTAKE_TRAINING)
+                {
+                    mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount = 1 - ((float)(Time.time - mistakeStartTime + currTrainingIterationMistakeTime) / (float)lastTrainingIterationMistakeTime);
+                }
+                
                 mistakeLineObj.SetActive(true);
                 
                 OVRInput.SetControllerVibration(1, 1, OVRInput.Controller.RTouch);
@@ -337,7 +384,7 @@ public class ExperimentManagerScript : MonoBehaviour
         //Debug.Log("isDetached = true, collision with " + tag);
         isDetached = true;
         currDragDir = tag; //x-dir, y-dir or z-dir
-        mistakeStartTime = (int)Time.time;
+        mistakeStartTime = Time.time;
 
         detachPt = _detachPt;
         detachPivot.transform.position = detachPt;
@@ -353,16 +400,19 @@ public class ExperimentManagerScript : MonoBehaviour
         isDetached = false;
         OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch);
 
-        mistakeEndTime = (int)Time.time;
+        mistakeEndTime = Time.time;
 
-        //mistake
+        print("Last mistake duration:" + (mistakeEndTime - mistakeStartTime));
+        //if (tag == "null") mistakeStartTime
+        if (expState == ExperimentState.MISTAKE_TRAINING || expState == ExperimentState.SPEED_TRAINING || expState == ExperimentState.VR_PRE_TEST || expState == ExperimentState.VR_POST_TEST)
+        {
+            if (tag != "null") currTrainingIterationMistakeTime += (mistakeEndTime - mistakeStartTime);
+            print("Current total mistake time - " + currTrainingIterationMistakeTime);
+        }
+        //print("Previous mistake time - " + lastTrainingIterationMistakeTime);
 
-        if(tag!="null") currTrainingIterationMistakeTime += (mistakeEndTime - mistakeStartTime);
-        print("Current mistake time - " + currTrainingIterationMistakeTime);
-        print("Previous mistake time - " + lastTrainingIterationMistakeTime);
-
-        mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount = ((float)currTrainingIterationMistakeTime / (float)lastTrainingIterationMistakeTime);
-        Debug.Log("Mistake percentage: " + mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount);
+        //mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount = ((float)currTrainingIterationMistakeTime / (float)lastTrainingIterationMistakeTime);
+        //Debug.Log("Mistake percentage: " + mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount);
 
         ghostRightHandController.SetActive(false);
 
@@ -555,12 +605,12 @@ public class ExperimentManagerScript : MonoBehaviour
 
                 expState = ExperimentState.VR_TUTORIAL;
                 modeTxt.text = "Tutorial";
-                //setAllLevelsInactive();
-                //tutorial.SetActive(true);
+
                 break;
                 
             case "VR_PRE_TEST":
-                //env.SetActive(true);
+                expState = ExperimentState.VR_PRE_TEST;
+       
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(true);
                 vrTutorialWireObj.SetActive(false);
@@ -568,14 +618,13 @@ public class ExperimentManagerScript : MonoBehaviour
                 mistakePrimer.SetActive(false);
                 speedPrimer.SetActive(false);
                 mistakeTimeIndicatorObj.SetActive(false);
-                arrowObj.SetActive(false);
-
-                //cylinderPointer.SetActive(false);
-                expState = ExperimentState.VR_PRE_TEST;
+                arrowObj.SetActive(false);      
+                
                 break;
 
             case "VR_POST_TEST":
-                //env.SetActive(true);
+                expState = ExperimentState.VR_POST_TEST;
+              
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(true);
                 vrTutorialWireObj.SetActive(false);
@@ -584,70 +633,79 @@ public class ExperimentManagerScript : MonoBehaviour
                 speedPrimer.SetActive(false);
                 mistakeTimeIndicatorObj.SetActive(false);
                 arrowObj.SetActive(false);
-
-                //cylinderPointer.SetActive(false);
-                expState = ExperimentState.VR_POST_TEST;
+                
                 break;
 
             case "SPEED_TRAINING":
+                expState = ExperimentState.SPEED_TRAINING;
                 ++currLevel;
-                //env.SetActive(true);
-                trainingWireObj.SetActive(true);
+                ++speedLevelCount;
+                dataFileWriter.WriteLine("\nSpeed Primer Training Selected");
+                dataFileWriter.WriteLine("--------------------------------");
+                dataFileWriter.WriteLine("Training iteration: " + currLevel + ", Speed training iteration: " + speedLevelCount);
+
+                currTrainingIterationTxt.text = "Iteration #" + currLevel;
+
+                trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(false);
                 vrTutorialWireObj.SetActive(false);
-                hookRoot.SetActive(true);
-                mistakePrimer.SetActive(false);
-                speedPrimer.SetActive(true);
-                surveyPanel.SetActive(false);
+
                 mistakeTimeIndicatorObj.SetActive(false);
-                arrowObj.SetActive(false);
+                arrowObj.SetActive(true);
+                instructionPanelObj.SetActive(true);
+                speedPrimerInstructionTxtObj.SetActive(true);
+                mistakePrimerInstructionTxtObj.SetActive(false);
+                speedPrimer.transform.position = mistakePrimerStartRefPos; //Both start at the same place
 
-                Debug.Log("Speed Primer Selected");
-                //Check condition and calculate next speed primer's speed based on either previous speed or pretest speed
-                nextTrainingIterationSpeed = lastTrainingIterationSpeed * 1.1f; // Increase speed by 10%
-                Debug.Log("Current speed is - " + lastTrainingIterationSpeed);
-                //expState = ExperimentState.SPEED_TRAINING;
-                //changeState("SPEED_TRAINING");
-                changeSpeed(nextTrainingIterationSpeed);
-                startSpeedPrimer();
+                //Debug.Log("Data** Speed Primer Selected");
+                //Debug.Log("Data** Next speed target is - " + lastTrainingIterationSpeed); 
+                dataFileWriter.WriteLine("Target training speed: " + nextTrainingIterationSpeed);
 
-                expState = ExperimentState.SPEED_TRAINING;
+
+                StartCoroutine(showOkButtonAfterDelay());
+                
                 modeTxt.text = "Speed Training";                
                 if (client != null)
                     client.Write("M;1;;;speed_training_started;\r\n");
                 break;
 
             case "MISTAKE_TRAINING":
-                //env.SetActive(true);
+                expState = ExperimentState.MISTAKE_TRAINING;
                 ++currLevel;
-                trainingWireObj.SetActive(true);
+                ++mistakeLevelCount;
+                dataFileWriter.WriteLine("\nMistake Primer Training Selected");
+                dataFileWriter.WriteLine("----------------------------------");
+                dataFileWriter.WriteLine("Training iteration: " + currLevel + ", Mistake training iteration: " + mistakeLevelCount);
+                currTrainingIterationTxt.text = "Iteration #" + currLevel;
+
+                trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(false);
                 vrTutorialWireObj.SetActive(false);
-                hookRoot.SetActive(true);
-                mistakePrimer.SetActive(true);
-                speedPrimer.SetActive(false);
-                surveyPanel.SetActive(false);
-                arrowObj.SetActive(false);
+    
                 mistakeTimeIndicatorObj.SetActive(true);
+                instructionPanelObj.SetActive(true);
+                speedPrimerInstructionTxtObj.SetActive(false);
+                mistakePrimerInstructionTxtObj.SetActive(true);
+                StartCoroutine(showOkButtonAfterDelay());
 
-                Debug.Log("Mistake Primer Selected");
-                lastTrainingIterationMistakeTime = currTrainingIterationMistakeTime * 0.9f; // Decrease mistake time by 10%
-                Debug.Log("Last mistake time was - " + lastTrainingIterationMistakeTime);
-                currTrainingIterationMistakeTime = 0;
-                mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount = 0;
-                mistakePrimer.transform.position = mistakePrimerStartRefPos;
-                //mistakePrimer.SetActive(true);
-                //speedPrimer.SetActive(false);
-                //expState = ExperimentState.MISTAKE_TRAINING;
+                //Debug.Log("Data** Mistake Primer Selected");
+
+                lastTrainingIterationMistakeTime = nextTrainingIterationMistakeTime;
+                dataFileWriter.WriteLine("Target training time: " + nextTrainingIterationMistakeTime);
+                //lastTrainingIterationMistakeTime = currTrainingIterationMistakeTime; // Decrease mistake time by 10%
+                Debug.Log("Data** Next mistake time target is - " + lastTrainingIterationMistakeTime);
+                //currTrainingIterationMistakeTime = 0;
+                mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount = 1;
+                mistakePrimer.transform.position = mistakePrimerStartRefPos;               
                 
-
-                expState = ExperimentState.MISTAKE_TRAINING;
                 modeTxt.text = "Mistake Training";
                 if (client != null)
                     client.Write("M;1;;;_mistake_training_started;\r\n");
                 break;
 
             case "TRAINING_SELF_EFFICACY":
+                expState = ExperimentState.TRAINING_SELF_EFFICACY;
+                
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(false);
                 vrTutorialWireObj.SetActive(false);
@@ -664,11 +722,8 @@ public class ExperimentManagerScript : MonoBehaviour
                 arrow.resetSlider();
                 hookRoot.SetActive(false);
                 arrowObj.SetActive(true);
-                //formHandler.startSurveyMediumPost();
-                modeTxt.text = "SE";
-                expState = ExperimentState.TRAINING_SELF_EFFICACY;
-                //if (client != null)
-                //    client.Write("M;1;;;medium_post_survey_started;\r\n");
+                modeTxt.text = "SE";                
+ 
                 break;
 
 
@@ -685,10 +740,49 @@ public class ExperimentManagerScript : MonoBehaviour
         }
     }
 
+    IEnumerator showOkButtonAfterDelay()
+    {
+        yield return new WaitForSeconds(0.5f);
+        okButtonObj.SetActive(true);
+        arrowObj.SetActive(true);
+    }
+
+    public void okButtonClicked()
+    {
+        hookRoot.SetActive(true);
+        trainingWireObj.SetActive(true);
+        arrowObj.SetActive(false);
+
+        okButtonObj.SetActive(false);
+        instructionPanelObj.SetActive(false);
+        mistakePrimerInstructionTxtObj.SetActive(false);
+        speedPrimerInstructionTxtObj.SetActive(false);
+
+        if (expState == ExperimentState.SPEED_TRAINING)
+        {
+            speedPrimer.SetActive(true);
+            mistakePrimer.SetActive(false);
+
+        }
+        else if (expState == ExperimentState.MISTAKE_TRAINING)
+        {
+            mistakePrimer.SetActive(true);
+            speedPrimer.SetActive(false);
+        }
+    }
+
+    public void seOkButtonClicked()
+    {
+        //print("seOkButtonClicked");
+        surveyPanel.SetActive(false);
+        dataFileWriter.WriteLine("\nSpeed SE Value:" + speedSEVal + ", Mistake SE Value:" + mistakeSEVal);
+    }
+
+
     public void showLevelResult(int _levelTimeResult)
     {
-        levelTimeResultsObj.SetActive(true);
-        levelTimeResultsObj.transform.GetChild(0).GetChild(0).GetComponent<TMPro.TMP_Text>().text = "You took " + _levelTimeResult + " seconds. \n Come on, you can do it faster!";
+        //levelTimeResultsObj.SetActive(true);
+        //levelTimeResultsObj.transform.GetChild(0).GetChild(0).GetComponent<TMPro.TMP_Text>().text = "You took " + _levelTimeResult + " seconds. \n Come on, you can do it faster!";
 
     }
 
@@ -715,38 +809,69 @@ public class ExperimentManagerScript : MonoBehaviour
         }
     }
 
+    void checkMistakeLevelCountAndChoose()
+    {
+        if (mistakeLevelCount < 8)
+        {
+            print("Mistake SE is lower");
+            changeState("MISTAKE_TRAINING");
+        }
+        else
+        {
+            print("Mistake SE is lower but mistake level count is 8. So switching to speed training");
+            changeState("SPEED_TRAINING");
+        }
+    }
+
+    void checkSpeedLevelCountAndChoose()
+    {
+        if (speedLevelCount < 8)
+        {
+            print("Speed SE is lower");
+            changeState("SPEED_TRAINING");
+        }
+        else
+        {
+            print("Speed SE is lower but speed level count is 8. So switching to mistake training");
+            changeState("MISTAKE_TRAINING");
+        }
+    }
+
     public void decideNextTrial()
     {
         surveyPanel.SetActive(false);
 
-        if (currLevel < 9)
+        if (currLevel < 10)
         {
-            //Logic for selecting next primer
-            if (speedSEVal > mistakeSEVal)
+            if (expCondition == ExperimentalCondition.ADAPTIVE)
             {
-                print("Mistake SE is lower");
-                changeState("MISTAKE_TRAINING");
-            }
-            else if (speedSEVal < mistakeSEVal)
-            {
-                print("Speed SE is lower");
-                changeState("SPEED_TRAINING");
-            }
-            else //Equal so randomly choose
-            {
-                //Randomly choose between invoking selectSpeedPrimer or selectMistakePrimer
-                print("Mistake SE and Speed SE are equal. Randomly choosing between speed and mistake primer - ");
-                float rand = UnityEngine.Random.Range(0, 9);
-                if ((int)rand % 2 == 0)
+                //Logic for selecting next primer
+                if (speedSEVal > mistakeSEVal)
                 {
-                    print("Speed primer chosen");
-                    changeState("SPEED_TRAINING");
+                    checkMistakeLevelCountAndChoose(); 
                 }
-                else
+                else if (speedSEVal < mistakeSEVal)
                 {
-                    print("Mistake primer chosen");
-                    changeState("MISTAKE_TRAINING");
+                    checkSpeedLevelCountAndChoose();
                 }
+                else //Equal so randomly choose
+                {
+                    //Randomly choose between invoking selectSpeedPrimer or selectMistakePrimer
+                    print("Mistake SE and Speed SE are equal. Randomly choosing between speed and mistake primer - ");
+                    float rand = UnityEngine.Random.Range(0, 9);
+                    if ((int)rand % 2 == 0)
+                    {
+                        checkSpeedLevelCountAndChoose();
+                    }
+                    else
+                    {
+                        checkMistakeLevelCountAndChoose();
+                    }
+                }
+            }
+            else if (expCondition == ExperimentalCondition.CONTROL)
+            {
+        
             }
         }
         else
@@ -758,20 +883,9 @@ public class ExperimentManagerScript : MonoBehaviour
         //hookRoot.SetActive(true); 
     }
 
-
-    public void changeSpeed(float newSpeed)
-    {
-        speed = newSpeed;
-    }
-
-    public void changeSpeedTxt()
-    {
-        prevSpeedTxt.text = "Previous training speed " + lastTrainingIterationSpeed;
-        currSpeedTxt.text = "Current primer speed " + lastTrainingIterationSpeed;
-    }
-
     public void startSpeedPrimer()
     {
+        speed = nextTrainingIterationSpeed;
         listPos = 0;
         //
         StartCoroutine(MoveRing());
