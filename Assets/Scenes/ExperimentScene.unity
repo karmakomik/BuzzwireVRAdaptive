@@ -2676,17 +2676,17 @@ MonoBehaviour:
   Damping: 0.3
   BackAndSideDampen: 0.5
   JumpForce: 0.3
-  RotationAmount: 1.5
+  RotationAmount: 0
   RotationRatchet: 45
   SnapRotation: 1
   RotateAroundGuardianCenter: 0
   FixedSpeedSteps: 0
   HmdResetsY: 1
-  HmdRotatesY: 1
+  HmdRotatesY: 0
   GravityModifier: 1
   useProfileData: 1
   EnableLinearMovement: 1
-  EnableRotation: 1
+  EnableRotation: 0
   RotationEitherThumbstick: 0
 --- !u!114 &377486122
 MonoBehaviour:
@@ -10403,6 +10403,7 @@ MonoBehaviour:
   hookRootDefaultPos: {x: 0, y: 0, z: 0}
   solidRightHandControllerDefaultRot: {x: 0, y: 0, z: 0, w: 0}
   solidRightHandControllerDefaultPos: {x: 0, y: 0, z: 0}
+  speedTrainingStarted: 0
   expState: 0
   ghostRightHandController: {fileID: 4652373593782124547}
   solidRightHandController: {fileID: 1822076590}
@@ -11243,7 +11244,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1533212013
 RectTransform:
   m_ObjectHideFlags: 0

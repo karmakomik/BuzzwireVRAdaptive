@@ -105,6 +105,8 @@ public class ExperimentManagerScript : MonoBehaviour
     public Quaternion solidRightHandControllerDefaultRot;
     public Vector3 solidRightHandControllerDefaultPos;
 
+    public bool speedTrainingStarted = false;
+
     public ExperimentState expState;
     int currLevel;
     int mistakeLevelCount, speedLevelCount;
@@ -251,7 +253,7 @@ public class ExperimentManagerScript : MonoBehaviour
         {
             message = null; //Since we are not using physical test here
             //print("isDetached:" + isDetached + "feedbackEnabled:" + feedbackEnabled);
-            if (isDetached && feedbackEnabled)
+            if (isFeedbackOnNow)//(isDetached && feedbackEnabled)
             {
                 if (expState == ExperimentState.MISTAKE_TRAINING)
                 {
@@ -383,8 +385,7 @@ public class ExperimentManagerScript : MonoBehaviour
         currCollider = _collider;
         //Debug.Log("isDetached = true, collision with " + tag);
         isDetached = true;
-        currDragDir = tag; //x-dir, y-dir or z-dir
-        mistakeStartTime = Time.time;
+        currDragDir = tag; //x-dir, y-dir or z-dir        
 
         detachPt = _detachPt;
         detachPivot.transform.position = detachPt;
@@ -399,16 +400,16 @@ public class ExperimentManagerScript : MonoBehaviour
         //Debug.Log("isDetached = false, collision with " + tag);
         isDetached = false;
         OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch);
-
         mistakeEndTime = Time.time;
 
-        print("Last mistake duration:" + (mistakeEndTime - mistakeStartTime));
-        //if (tag == "null") mistakeStartTime
         if (expState == ExperimentState.MISTAKE_TRAINING || expState == ExperimentState.SPEED_TRAINING || expState == ExperimentState.VR_PRE_TEST || expState == ExperimentState.VR_POST_TEST)
         {
+            print("Last mistake duration:" + (mistakeEndTime - mistakeStartTime));
             if (tag != "null") currTrainingIterationMistakeTime += (mistakeEndTime - mistakeStartTime);
             print("Current total mistake time - " + currTrainingIterationMistakeTime);
+            print("Last total mistake time - " + lastTrainingIterationMistakeTime);
         }
+ 
         //print("Previous mistake time - " + lastTrainingIterationMistakeTime);
 
         //mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount = ((float)currTrainingIterationMistakeTime / (float)lastTrainingIterationMistakeTime);
@@ -419,27 +420,6 @@ public class ExperimentManagerScript : MonoBehaviour
         solidRightHandController.transform.SetParent(hookRoot.transform);
         solidRightHandController.transform.localRotation = solidRightHandControllerDefaultRot;
         solidRightHandController.transform.localPosition = solidRightHandControllerDefaultPos;
-
-    }
-
-    public void triggerMistakeFeedback(string dir, Vector3 _mistakeDir, Vector3 _mistakeVector)
-    {
-        isFeedbackOnNow = true;
-        //print("mistakeVector" + _mistakeVector);
-        /*if (expCondition == ExperimentalCondition.VIBRATION)
-        {
-            vibrateInDirection(_mistakeDir);
-
-        }*/
-
-
-
-        //hapticArduinoSerialController.SendSerialMessage("1");
-        //GetComponent<VibrationDemoScript>().TurnEffectOn();
-        //StartCoroutine(Haptics(1, 1, 0.1f, true, false));
-        //beepsound.mute = false;
-        //mistakeLight.GetComponent<MeshRenderer>().material = lightOnMat;
-        //mistakeLight.SetActive(true);
 
     }
 
@@ -455,31 +435,7 @@ public class ExperimentManagerScript : MonoBehaviour
     {
         Debug.Log("Arduino connected");
     }
-
-    public void stopMistakeFeedback()
-    {
-        isFeedbackOnNow = false;
-        //vibrateInDirection(new Vector3(0, 0, 0));
-        //HapticsDeviceManager.SetForce(new Vector3(0, 0, 0));
-        //double[] zero = { 0.0, 0.0, 0.0 };
-        //HapticPlugin.setForce("Default Device", zero, zero);
-        //hapticArduinoSerialController.SendSerialMessage("0");
-
-        //beepsound.mute = true;
-        //GetComponent<VibrationDemoScript>().TurnEffectOff();
-
-
-        //mistakeLight.SetActive(false);
-    }
-
-    void setAllLevelsInactive()
-    {
-        //tutorial.SetActive(false);
-        //level1.SetActive(false);
-        //level2.SetActive(false);
-        //level3.SetActive(false);
-    }
-
+    
     public IEnumerator startBaselineCounterCoroutine()
     {
         modeTxt.text = "Baseline Active";
@@ -499,14 +455,6 @@ public class ExperimentManagerScript : MonoBehaviour
         //Debug.Log("delayResetNewTasksFlag");
     }
 
-    /*public void changeIntensityOfGhost(float level)
-    {
-        // Change alpha of ghostRightHandController material
-        ghostRightHandController.GetComponent<Renderer>().material.color = new Color(ghostRightHandController.GetComponent<Renderer>().material.color.r, ghostRightHandController.GetComponent<Renderer>().material.color.g, ghostRightHandController.GetComponent<Renderer>().material.color.b, level);
-        //ghost_handle.GetComponent<Renderer>().material.color = new Color(ghostRightHandController.GetComponent<Renderer>().material.color.r, ghostRightHandController.GetComponent<Renderer>().material.color.g, ghostRightHandController.GetComponent<Renderer>().material.color.b, level);
-        ghost_wire.GetComponent<Renderer>().material.color = new Color(ghostRightHandController.GetComponent<Renderer>().material.color.r, ghostRightHandController.GetComponent<Renderer>().material.color.g, ghostRightHandController.GetComponent<Renderer>().material.color.b, level);
-    }*/
-
     public void startBaseline()
     {
         if (client != null)
@@ -523,7 +471,7 @@ public class ExperimentManagerScript : MonoBehaviour
         //trainingPhase = true;
         if (level == 0)
         {
-            setAllLevelsInactive();
+            //setAllLevelsInactive();
             levelTimeResultsObj.SetActive(false);
             trainingWireObj.SetActive(true);
             hookRoot.SetActive(false);
@@ -591,26 +539,24 @@ public class ExperimentManagerScript : MonoBehaviour
             case "PRE_TEST":
                 expState = ExperimentState.PRE_TEST;
                 //goSound.Play();
-                modeTxt.text = "Pre Test Active";
+                modeTxt.text = "Pre Test";
                 if (client != null)
                     client.Write("M;1;;;pre_test_started;\r\n");
                 break;
                 
             case "VR_TUTORIAL":
-                modeTxt.text = "Tutorial Mode On";                             
+                expState = ExperimentState.VR_TUTORIAL;
+                modeTxt.text = "Tutorial Mode";                             
                 hookRoot.SetActive(true);
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(false);
                 vrTutorialWireObj.SetActive(true);
-
-                expState = ExperimentState.VR_TUTORIAL;
-                modeTxt.text = "Tutorial";
-
+                
                 break;
                 
             case "VR_PRE_TEST":
                 expState = ExperimentState.VR_PRE_TEST;
-       
+                modeTxt.text = "VR Pretest";
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(true);
                 vrTutorialWireObj.SetActive(false);
@@ -624,7 +570,7 @@ public class ExperimentManagerScript : MonoBehaviour
 
             case "VR_POST_TEST":
                 expState = ExperimentState.VR_POST_TEST;
-              
+                modeTxt.text = "VR Posttest";
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(true);
                 vrTutorialWireObj.SetActive(false);

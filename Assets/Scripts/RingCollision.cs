@@ -10,16 +10,13 @@ public class RingCollision : MonoBehaviour
     Collider currCollider;
     Collider oldCollider;
     Vector3 loc;
-    // GameObject startStopLight;
+
     int numCollidersInContact;
-    //GameObject mistakeLineObj;
+
     private Vector3 mistakeVector;
     Vector3 mistakeDirection;
     float levelStartTime, levelEndTime;
     GameObject _mistakePrimerObj;
-
-    //public GameObject hapticPointer;
-    Vector3 normForceVector, prevNormForceVector;
 
     int partNumAtTimeOfDetaching = 0, partNumAtTimeOfReattaching = 0;
    
@@ -53,43 +50,35 @@ public class RingCollision : MonoBehaviour
         //Debug.Log("Object in contact - " + other.gameObject);
         if (other.tag != "StartZone" && other.tag != "StopZone" && experimentControllerScript.feedbackEnabled)
         {
-            if (experimentControllerScript.feedbackEnabled)
+            if (other.gameObject.name.StartsWith("Part") && experimentControllerScript.isDetached)
             {
-                if (other.gameObject.name.StartsWith("Part"))
-                {
-                    partNumAtTimeOfReattaching = int.Parse(other.gameObject.name.Substring(4));
-                    //print("Part num at time of reattaching - " + partNumAtTimeOfReattaching + " part num at time of detaching - " + partNumAtTimeOfDetaching);
+                partNumAtTimeOfReattaching = int.Parse(other.gameObject.name.Substring(4));
+                //print("Part num at time of reattaching - " + partNumAtTimeOfReattaching + " part num at time of detaching - " + partNumAtTimeOfDetaching);
 
-                    if (partNumAtTimeOfReattaching == partNumAtTimeOfDetaching || partNumAtTimeOfReattaching == partNumAtTimeOfDetaching + 1)
-                    {
-                        //print("Reattaching to correct part");
-                        experimentControllerScript.doControllerReattachOperations(other.gameObject.tag);
-                        experimentControllerScript.stopMistakeFeedback();
-                        experimentControllerScript.mistakeLineObj.SetActive(false);
-                    }
-                    else
-                    {
-                        print("Reattaching to wrong part");
-                    }
+                if (partNumAtTimeOfReattaching == partNumAtTimeOfDetaching || partNumAtTimeOfReattaching == partNumAtTimeOfDetaching + 1)
+                {
+                    //print("Reattaching to correct part");
+                    experimentControllerScript.doControllerReattachOperations(other.gameObject.tag);                    
+                    experimentControllerScript.isFeedbackOnNow = false;
+                    experimentControllerScript.mistakeLineObj.SetActive(false);
+                }
+                else
+                {
+                    print("Reattaching to wrong part");
                 }
             }
         }
         else if (other.tag == "StopZone")
         {
-            //experimentControllerScript.doControllerReattachOperations("null");
             experimentControllerScript.mistakeLineObj.SetActive(false);
-            //experimentControllerScript.stopMistakeFeedback();
 
             numCollidersInContact = 0;
             partNumAtTimeOfDetaching = 1;
             experimentControllerScript.feedbackEnabled = false;
+            experimentControllerScript.isFeedbackOnNow = false;
             experimentControllerScript.solidRightHandController.SetActive(false);
             experimentControllerScript.ghostRightHandController.SetActive(true);
 
-            ////
-            ///  From Trigger stay          
-            //experimentControllerScript.stopMistakeFeedback();
-            //experimentControllerScript.mistakeLineObj.SetActive(false);
             if (experimentControllerScript.client != null && experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
                 experimentControllerScript.client.Write("M;1;;;RightSwitchPressedVR;\r\n");
 
@@ -98,6 +87,7 @@ public class RingCollision : MonoBehaviour
             Debug.Log("Level finished!");
             if (experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
             {
+                experimentControllerScript.speedTrainingStarted = false;
                 levelEndTime = Time.time;
                 if (experimentControllerScript.expState == ExperimentState.SPEED_TRAINING || experimentControllerScript.expState == ExperimentState.MISTAKE_TRAINING)
                     experimentControllerScript.lastTrainingIterationSpeed = (float)57 / (float)(levelEndTime - levelStartTime);
@@ -128,12 +118,7 @@ public class RingCollision : MonoBehaviour
 
                 experimentControllerScript.changeState("TRAINING_SELF_EFFICACY");
 
-            }
-            
-        }
-        else if (other.tag == "StartZone")
-        {
-
+            }            
         }
     }
 
@@ -283,16 +268,6 @@ public class RingCollision : MonoBehaviour
                 }
             }
         }
-        else if (other.tag == "StartZone")
-        {
-            //startStopLight.SetActive(true);
-
-        }
-        else if (other.tag == "StopZone")
-        {
-            //startStopLight.SetActive(true);
-
-        }
     }
 
     private void OnTriggerExit(Collider other)
@@ -311,30 +286,28 @@ public class RingCollision : MonoBehaviour
                     partNumAtTimeOfDetaching = int.Parse(other.gameObject.name.Substring(4));
 
                     experimentControllerScript.doControllerDetachOperations((CapsuleCollider)other, other.gameObject.tag, loc);
-
+                    experimentControllerScript.mistakeStartTime = Time.time;
                     //Find the vector between the two points
                     mistakeVector = experimentControllerScript.projectedHookPos - transform.position;
-                    //experimentControllerScript.changeIntensityOfGhost(math.remap(0, 127, 0, 1, mistakeVector.magnitude));
 
                     mistakeDirection = mistakeVector.normalized;
-                    //float mistakeDepth = mistakeVector.magnitude;
-                    experimentControllerScript.triggerMistakeFeedback(other.tag.ToString(), mistakeDirection, mistakeVector);
-                    
+                    experimentControllerScript.isFeedbackOnNow = true;
                 }
             }
         }
         else if (other.tag == "StartZone")
         {
-            if (experimentControllerScript.expState == ExperimentState.SPEED_TRAINING)
+            if (experimentControllerScript.expState == ExperimentState.SPEED_TRAINING && !experimentControllerScript.speedTrainingStarted)
             {
-                experimentControllerScript.startSpeedPrimer();
+                experimentControllerScript.speedTrainingStarted = true;
+                experimentControllerScript.startSpeedPrimer();                
             }
             Debug.Log("Level started!");
             experimentControllerScript.currTrainingIterationMistakeTime = 0;
             levelStartTime = Time.time;
-            //if(!experimentControllerScript.tutorialPhase) other.enabled = false;
+            
             experimentControllerScript.feedbackEnabled = true;
-            //experimentControllerScript.startStopRefController.SetActive(false);
+            
             experimentControllerScript.solidRightHandController.SetActive(true);
             experimentControllerScript.ghostRightHandController.SetActive(false);
 
@@ -344,15 +317,9 @@ public class RingCollision : MonoBehaviour
             experimentControllerScript.mistakeLineObj.SetActive(false);
 
             //trigger stay
-            //experimentControllerScript.stopMistakeFeedback();
-            //experimentControllerScript.mistakeLineObj.SetActive(false);
             if (experimentControllerScript.client != null && experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
                 experimentControllerScript.client.Write("M;1;;;LeftSwitchPressedVR;\r\n");
         }
-        else if (other.tag == "StopZone")
-        {
-        }
-        
     }
 
     /*private void OnDrawGizmos()
