@@ -65,7 +65,7 @@ public class ExperimentManagerScript : MonoBehaviour
     public GameObject mistakeLineObj;
 
     public GameObject env;
-    public GameObject hapticEnv, avatar;
+    public GameObject hapticEnv, avatar, oculusRightControllerObj;
 
     public GameObject testArduinoSerialControllerObj;
     public SerialController testArduinoSerialController;
@@ -732,6 +732,15 @@ public class ExperimentManagerScript : MonoBehaviour
 
     }
 
+    public void calibrateEnv()
+    {
+        //set env position as the midway point between the avatar and the oculus right controller
+        Vector3 avatarPos = avatar.transform.position;
+        Vector3 oculusRightControllerPos = oculusRightControllerObj.transform.position;
+        Vector3 envPos = (avatarPos + oculusRightControllerPos) / 2;
+        env.transform.position = new Vector3(envPos.x, oculusRightControllerPos.y, envPos.z);
+    }
+
     public void saveConfig()
     {
         PlayerPrefs.SetString("avatar_x", avatar_x_slider.value.ToString());
@@ -822,7 +831,7 @@ public class ExperimentManagerScript : MonoBehaviour
         }
         else
         {
-            changeState("VR_POST_TEST");
+            //changeState("VR_POST_TEST");
         }
         
          //arrowObj.SetActive(false);
@@ -877,6 +886,10 @@ public class ExperimentManagerScript : MonoBehaviour
         if (leftHand) OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.LTouch);
     }
 
-
+    public void closeApp()
+    {
+        dataFileWriter.Close();
+        Application.Quit();
+    }
 
 }
