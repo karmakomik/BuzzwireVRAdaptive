@@ -47,6 +47,7 @@ public class RingCollision : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         ++numCollidersInContact;
+        print("OnTriggerEnter: numCollidersInContact:" + numCollidersInContact + "isFeedbackOnNow:" + experimentControllerScript.isFeedbackOnNow);
         //Debug.Log("Object in contact - " + other.gameObject);
         if (other.tag != "StartZone" && other.tag != "StopZone" && experimentControllerScript.feedbackEnabled)
         {
@@ -72,7 +73,7 @@ public class RingCollision : MonoBehaviour
         {
             experimentControllerScript.mistakeLineObj.SetActive(false);
 
-            numCollidersInContact = 1;
+            numCollidersInContact = 0;
             partNumAtTimeOfDetaching = 1;
             experimentControllerScript.feedbackEnabled = false;
             experimentControllerScript.isFeedbackOnNow = false;
@@ -279,7 +280,10 @@ public class RingCollision : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        --numCollidersInContact;
+        if(numCollidersInContact > 0) --numCollidersInContact;
+        
+        print("OnTriggerExit : numCollidersInContact:" + numCollidersInContact + "isFeedbackOnNow:" + experimentControllerScript.isFeedbackOnNow);
+        
         if (other.tag != "StartZone" && other.tag != "StopZone" && experimentControllerScript.feedbackEnabled)
         {
             //Debug.Log("Haptic pointer z angle " + hapticPointer.transform.localEulerAngles.z);
@@ -304,8 +308,8 @@ public class RingCollision : MonoBehaviour
         }
         else if (other.tag == "StartZone") //Task starts here
         {
-            numCollidersInContact = 1;
-            print("numCollidersInContact: " + numCollidersInContact + ",isFeedbackOnNow: " + experimentControllerScript.isFeedbackOnNow);
+            numCollidersInContact = 0;
+            //print("numCollidersInContact: " + numCollidersInContact + ",isFeedbackOnNow: " + experimentControllerScript.isFeedbackOnNow);
             if (experimentControllerScript.expState == ExperimentState.SPEED_TRAINING && !experimentControllerScript.speedTrainingStarted)
             {
                 experimentControllerScript.speedTrainingStarted = true;

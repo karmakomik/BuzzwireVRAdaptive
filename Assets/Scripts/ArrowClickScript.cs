@@ -15,8 +15,6 @@ public class ArrowClickScript : MonoBehaviour
 
     public float xMin, xMax;
 
-    public GameObject seOkButtonObj;
-
     bool hasSpeedSEChanged, hasMistakesSEChanged;
 
     // Start is called before the first frame update
