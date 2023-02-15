@@ -7,11 +7,13 @@ using UnityEngine.SceneManagement;
 public class StartSceneScript : MonoBehaviour
 {
     public TMP_InputField testCOMPort;
+    public TMP_InputField participantId;
 
     // Start is called before the first frame update
     void Start()
     {
         testCOMPort.text = PlayerPrefs.GetString("testCOMPort", "not_set");
+        participantId.text = "not set";
         //Debug.Log("testCOMPort" + testCOMPort.text);
 
         /*if (PlayerPrefs.HasKey("testCOMPort"))
@@ -35,16 +37,25 @@ public class StartSceneScript : MonoBehaviour
         PlayerPrefs.Save();
     }
 
+    public void saveParticipantID()
+    {
+        //Debug.Log("Current participant name - " + participantId.text);
+        PlayerPrefs.SetString("participantId", participantId.text);
+        PlayerPrefs.Save();
+    }
+
     public void selectExperimentCondition(string expCondStr)
     {
         switch (expCondStr)
         {
             case "Control":
                 ExperimentManagerScript.expCondition = ExperimentalCondition.CONTROL;
+                saveParticipantID();
                 startExperiment();
                 break;
             case "Adaptive":
                 ExperimentManagerScript.expCondition = ExperimentalCondition.ADAPTIVE;
+                saveParticipantID();
                 startExperiment();
                 break;
             default:

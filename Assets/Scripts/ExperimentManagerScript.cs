@@ -122,6 +122,7 @@ public class ExperimentManagerScript : MonoBehaviour
     public float mistakeStartTime, mistakeEndTime;
 
     public StreamWriter dataFileWriter;
+    string _participantId;
 
     public SimpleTcpClient client;
 
@@ -132,35 +133,19 @@ public class ExperimentManagerScript : MonoBehaviour
     {
         thisObj = this;
         testArduinoSerialController.portName = PlayerPrefs.GetString("testCOMPort", "not_set");
+        _participantId = PlayerPrefs.GetString("participantId", "not_set");
 
         Debug.Log("Test COM port set - " + testArduinoSerialController.portName);
 
-        testArduinoSerialControllerObj.SetActive(true);
+        testArduinoSerialControllerObj.SetActive(true);        
 
-
-        if (PlayerPrefs.GetString("avatar_x", "not_set") == "not_set" || PlayerPrefs.GetString("avatar_y", "not_set") == "not_set" || PlayerPrefs.GetString("avatar_z", "not_set") == "not_set")
+        if (PlayerPrefs.GetString("env_x", "not_set") == "not_set" || PlayerPrefs.GetString("env_y", "not_set") == "not_set" || PlayerPrefs.GetString("env_z", "not_set") == "not_set")
         {
-            Debug.Log("Avatar pos not set");
+            Debug.Log("Env pos not set");
         }
         else
         {
-            //print("Player prefs avatar_z" + PlayerPrefs.GetString("avatar_z", "not_set"));
-            avatar.transform.position = new Vector3(float.Parse(PlayerPrefs.GetString("avatar_x", "not_set")), float.Parse(PlayerPrefs.GetString("avatar_y", "not_set")), float.Parse(PlayerPrefs.GetString("avatar_z", "not_set")));
-            avatar_x_slider.value = float.Parse(PlayerPrefs.GetString("avatar_x", "not_set"));
-            avatar_y_slider.value = float.Parse(PlayerPrefs.GetString("avatar_y", "not_set"));
-            avatar_z_slider.value = float.Parse(PlayerPrefs.GetString("avatar_z", "not_set"));
-        }
-
-        if (PlayerPrefs.GetString("hapticEnv_x", "not_set") == "not_set" || PlayerPrefs.GetString("hapticEnv_y", "not_set") == "not_set" || PlayerPrefs.GetString("hapticEnv_z", "not_set") == "not_set")
-        {
-            Debug.Log("Haptic Env pos not set");
-        }
-        else
-        {
-            hapticEnv.transform.position = new Vector3(float.Parse(PlayerPrefs.GetString("hapticEnv_x", "not_set")), float.Parse(PlayerPrefs.GetString("hapticEnv_y", "not_set")), float.Parse(PlayerPrefs.GetString("hapticEnv_z", "not_set")));
-            hapticEnv_x_slider.value = float.Parse(PlayerPrefs.GetString("hapticEnv_x", "not_set"));
-            hapticEnv_y_slider.value = float.Parse(PlayerPrefs.GetString("hapticEnv_y", "not_set"));
-            hapticEnv_z_slider.value = float.Parse(PlayerPrefs.GetString("hapticEnv_z", "not_set"));
+            env.transform.position = new Vector3(float.Parse(PlayerPrefs.GetString("env_x", "not_set")), float.Parse(PlayerPrefs.GetString("env_y", "not_set")), float.Parse(PlayerPrefs.GetString("env_z", "not_set")));
         }
     }
 
@@ -213,7 +198,7 @@ public class ExperimentManagerScript : MonoBehaviour
         {
             Directory.CreateDirectory(Application.persistentDataPath + "/AdaptiveExperimentData");
         }
-        dataFileWriter = new StreamWriter(Application.persistentDataPath + "/AdaptiveExperimentData/" + System.DateTime.Now.ToString("Data_dd_MMMM_yyyy_HH_mm_ss") + ".txt");
+        dataFileWriter = new StreamWriter(Application.persistentDataPath + "/AdaptiveExperimentData/" + _participantId + System.DateTime.Now.ToString("Data_dd_MMMM_yyyy_HH_mm_ss") + ".txt");
         dataFileWriter.WriteLine(expCondition.ToString());
         EditorApplication.playModeStateChanged += LogPlayModeState;
 
@@ -221,12 +206,14 @@ public class ExperimentManagerScript : MonoBehaviour
         client = new SimpleTcpClient().Connect("127.0.0.1", 8089);
     }
 
-
+    
+#if UNITY_EDITOR
     private static void LogPlayModeState(PlayModeStateChange state)
     {
         thisObj.dataFileWriter.Flush();
         Debug.Log(state);
     }
+#endif
 
 
     private void FixedUpdate()
@@ -739,6 +726,10 @@ public class ExperimentManagerScript : MonoBehaviour
         Vector3 oculusRightControllerPos = oculusRightControllerObj.transform.position;
         Vector3 envPos = (avatarPos + oculusRightControllerPos) / 2;
         env.transform.position = new Vector3(envPos.x, oculusRightControllerPos.y, envPos.z);
+        PlayerPrefs.SetString("env_x", env.transform.position.x.ToString());
+        PlayerPrefs.SetString("env_y", env.transform.position.y.ToString());
+        PlayerPrefs.SetString("env_z", env.transform.position.z.ToString());
+        PlayerPrefs.Save();
     }
 
     public void saveConfig()
