@@ -120,6 +120,11 @@ public class ExperimentManagerScript : MonoBehaviour
     public float lastTrainingIterationSpeed, nextTrainingIterationSpeed;
     public float currTrainingIterationMistakeTime, lastTrainingIterationMistakeTime, nextTrainingIterationMistakeTime;
     public float mistakeStartTime, mistakeEndTime;
+    public int numCollidersInContact; //To potentially solve script execution order issues
+
+    public bool didLoopExitStartZone, didLoopTouchStopZone, didVRTestWaitPeriodEnd;
+    public GameObject vrTestStartZoneObj, vrTestStopZoneObj, vrTestAtoBInstructionObj, vrTestBtoAInstructionObj, vrTestWaitAtBInstructionObj;
+    Vector3 vrTestStartZonePos, vrTestStopZonePos;
 
     public StreamWriter dataFileWriter;
     string _participantId;
@@ -188,6 +193,8 @@ public class ExperimentManagerScript : MonoBehaviour
         detachPivot.transform.position = Vector3.zero;
         oldGhostPos = ghostRightHandController.transform.position;
         mistakePrimerStartRefPos = mistakePrimer.transform.position;
+        vrTestStartZonePos = vrTestStartZoneObj.transform.position;
+        vrTestStopZonePos = vrTestStopZoneObj.transform.position;
 
         //startStopRefController.transform.position = startPositions[currLevel - 1];
         solidRightHandController.SetActive(false);
@@ -201,7 +208,6 @@ public class ExperimentManagerScript : MonoBehaviour
         dataFileWriter = new StreamWriter(Application.persistentDataPath + "/AdaptiveExperimentData/" + _participantId + System.DateTime.Now.ToString("Data_dd_MMMM_yyyy_HH_mm_ss") + ".txt");
         dataFileWriter.WriteLine(expCondition.ToString());
         EditorApplication.playModeStateChanged += LogPlayModeState;
-
 
         client = new SimpleTcpClient().Connect("127.0.0.1", 8089);
     }
@@ -391,10 +397,10 @@ public class ExperimentManagerScript : MonoBehaviour
 
         if (expState == ExperimentState.MISTAKE_TRAINING || expState == ExperimentState.SPEED_TRAINING || expState == ExperimentState.VR_PRE_TEST || expState == ExperimentState.VR_POST_TEST)
         {
-            print("Last mistake duration:" + (mistakeEndTime - mistakeStartTime));
+            //print("Last mistake duration:" + (mistakeEndTime - mistakeStartTime));
             if (tag != "null") currTrainingIterationMistakeTime += (mistakeEndTime - mistakeStartTime);
-            print("Current total mistake time - " + currTrainingIterationMistakeTime);
-            print("Last total mistake time - " + lastTrainingIterationMistakeTime);
+            //print("Current total mistake time - " + currTrainingIterationMistakeTime);
+            //print("Last total mistake time - " + lastTrainingIterationMistakeTime);
         }
  
         //print("Previous mistake time - " + lastTrainingIterationMistakeTime);
@@ -476,8 +482,7 @@ public class ExperimentManagerScript : MonoBehaviour
 
     }
 
-    float translateFactor = 0.001f;
-
+    
     public void changeHapticEnv_x(float x)
     {
         hapticEnv.transform.position = new Vector3(x, hapticEnv.transform.position.y, hapticEnv.transform.position.z);
@@ -538,6 +543,7 @@ public class ExperimentManagerScript : MonoBehaviour
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(false);
                 vrTutorialWireObj.SetActive(true);
+                vrTestAtoBInstructionObj.SetActive(true);
                 
                 break;
                 
@@ -551,7 +557,12 @@ public class ExperimentManagerScript : MonoBehaviour
                 mistakePrimer.SetActive(false);
                 speedPrimer.SetActive(false);
                 mistakeTimeIndicatorObj.SetActive(false);
-                arrowObj.SetActive(false);      
+                arrowObj.SetActive(false);
+                didLoopExitStartZone = false;
+                didLoopTouchStopZone = false;
+                didVRTestWaitPeriodEnd = false;
+                vrTestAtoBInstructionObj.SetActive(true);
+                resetTestStartStopPositions();
                 
                 break;
 
@@ -566,6 +577,11 @@ public class ExperimentManagerScript : MonoBehaviour
                 speedPrimer.SetActive(false);
                 mistakeTimeIndicatorObj.SetActive(false);
                 arrowObj.SetActive(false);
+                didLoopExitStartZone = false;
+                didLoopTouchStopZone = false;
+                didVRTestWaitPeriodEnd = false;
+                vrTestAtoBInstructionObj.SetActive(true);
+                resetTestStartStopPositions();
                 
                 break;
 
@@ -593,7 +609,6 @@ public class ExperimentManagerScript : MonoBehaviour
                 //Debug.Log("Data** Speed Primer Selected");
                 //Debug.Log("Data** Next speed target is - " + lastTrainingIterationSpeed); 
                 dataFileWriter.WriteLine("Target training speed: " + nextTrainingIterationSpeed);
-
 
                 StartCoroutine(showOkButtonAfterDelay());
                 
@@ -624,7 +639,7 @@ public class ExperimentManagerScript : MonoBehaviour
                 //Debug.Log("Data** Mistake Primer Selected");
 
                 lastTrainingIterationMistakeTime = nextTrainingIterationMistakeTime;
-                dataFileWriter.WriteLine("Target training time: " + nextTrainingIterationMistakeTime);
+                dataFileWriter.WriteLine("Target training mistake time: " + lastTrainingIterationMistakeTime);
                 //lastTrainingIterationMistakeTime = currTrainingIterationMistakeTime; // Decrease mistake time by 10%
                 Debug.Log("Data** Next mistake time target is - " + lastTrainingIterationMistakeTime);
                 //currTrainingIterationMistakeTime = 0;
@@ -694,12 +709,12 @@ public class ExperimentManagerScript : MonoBehaviour
         if (expState == ExperimentState.SPEED_TRAINING)
         {
             speedPrimer.SetActive(true);
-            mistakePrimer.SetActive(false);
+            //mistakePrimer.SetActive(false);
 
         }
         else if (expState == ExperimentState.MISTAKE_TRAINING)
         {
-            mistakePrimer.SetActive(true);
+            //mistakePrimer.SetActive(true);
             speedPrimer.SetActive(false);
         }
     }
@@ -726,6 +741,9 @@ public class ExperimentManagerScript : MonoBehaviour
         Vector3 oculusRightControllerPos = oculusRightControllerObj.transform.position;
         Vector3 envPos = (avatarPos + oculusRightControllerPos) / 2;
         env.transform.position = new Vector3(envPos.x, oculusRightControllerPos.y, envPos.z);
+        mistakePrimerStartRefPos = mistakePrimer.transform.position;
+        vrTestStartZonePos = vrTestStartZoneObj.transform.position;
+        vrTestStopZonePos = vrTestStopZoneObj.transform.position;
         PlayerPrefs.SetString("env_x", env.transform.position.x.ToString());
         PlayerPrefs.SetString("env_y", env.transform.position.y.ToString());
         PlayerPrefs.SetString("env_z", env.transform.position.z.ToString());
@@ -875,6 +893,18 @@ public class ExperimentManagerScript : MonoBehaviour
 
         if (rightHand) OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.RTouch);
         if (leftHand) OVRInput.SetControllerVibration(0, 0, OVRInput.Controller.LTouch);
+    }
+
+    public void swapTestStartStopPositions()
+    {
+        vrTestStartZoneObj.transform.position = vrTestStopZonePos;
+        vrTestStopZoneObj.transform.position = vrTestStartZonePos;
+    }
+
+    public void resetTestStartStopPositions()
+    {
+        vrTestStartZoneObj.transform.position = vrTestStartZonePos;
+        vrTestStopZoneObj.transform.position = vrTestStopZonePos;
     }
 
     public void closeApp()
