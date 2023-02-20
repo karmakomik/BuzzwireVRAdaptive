@@ -110,6 +110,7 @@ public class ExperimentManagerScript : MonoBehaviour
     public ExperimentState expState;
     int currLevel;
     int mistakeLevelCount, speedLevelCount;
+    List<ExperimentState> trainingTypeList, controlGrpTrainingTypeList;
 
     public GameObject ghostRightHandController;
     public GameObject solidRightHandController;
@@ -163,8 +164,9 @@ public class ExperimentManagerScript : MonoBehaviour
         currLevel = 0;
         currTrainingIterationMistakeTime = 0;
         mistakeLevelCount = speedLevelCount = 0;
+        trainingTypeList = new List<ExperimentState>();
 
-        expCondition = ExperimentalCondition.ADAPTIVE;
+        expCondition = ExperimentalCondition.CONTROL;
 
         if (expCondition == ExperimentalCondition.CONTROL)
             conditionTxt.text = "Control";
@@ -587,6 +589,7 @@ public class ExperimentManagerScript : MonoBehaviour
 
             case "SPEED_TRAINING":
                 expState = ExperimentState.SPEED_TRAINING;
+                trainingTypeList.Add(ExperimentState.SPEED_TRAINING);
                 ++currLevel;
                 ++speedLevelCount;
                 dataFileWriter.WriteLine("\nSpeed Primer Training Selected");
@@ -619,6 +622,7 @@ public class ExperimentManagerScript : MonoBehaviour
 
             case "MISTAKE_TRAINING":
                 expState = ExperimentState.MISTAKE_TRAINING;
+                trainingTypeList.Add(ExperimentState.MISTAKE_TRAINING);
                 ++currLevel;
                 ++mistakeLevelCount;
                 dataFileWriter.WriteLine("\nMistake Primer Training Selected");
@@ -727,13 +731,6 @@ public class ExperimentManagerScript : MonoBehaviour
     }
 
 
-    public void showLevelResult(int _levelTimeResult)
-    {
-        //levelTimeResultsObj.SetActive(true);
-        //levelTimeResultsObj.transform.GetChild(0).GetChild(0).GetComponent<TMPro.TMP_Text>().text = "You took " + _levelTimeResult + " seconds. \n Come on, you can do it faster!";
-
-    }
-
     public void calibrateEnv()
     {
         //set env position as the midway point between the avatar and the oculus right controller
@@ -775,31 +772,89 @@ public class ExperimentManagerScript : MonoBehaviour
 
     void checkMistakeLevelCountAndChoose()
     {
-        if (mistakeLevelCount < 8)
+        int _mistakeLevelCount = trainingTypeList.FindAll(x => x == ExperimentState.MISTAKE_TRAINING).Count;
+        print("Count of Mistake training instances so far: " + trainingTypeList.FindAll(x => x == ExperimentState.MISTAKE_TRAINING).Count);
+        if (_mistakeLevelCount != 4 || _mistakeLevelCount != 8)
         {
             print("Mistake SE is lower");
             changeState("MISTAKE_TRAINING");
         }
         else
         {
-            print("Mistake SE is lower but mistake level count is 8. So switching to speed training");
+            print("Mistake SE is lower but mistake level count is either 4 or 8. So switching to speed training");
             changeState("SPEED_TRAINING");
         }
     }
 
     void checkSpeedLevelCountAndChoose()
     {
-        if (speedLevelCount < 8)
+        int _speedLevelCount = trainingTypeList.FindAll(x => x == ExperimentState.SPEED_TRAINING).Count;
+        print("Count of Speed training instances so far: " + trainingTypeList.FindAll(x => x == ExperimentState.SPEED_TRAINING).Count);
+        if (_speedLevelCount != 4 || _speedLevelCount != 8)
         {
             print("Speed SE is lower");
             changeState("SPEED_TRAINING");
         }
         else
         {
-            print("Speed SE is lower but speed level count is 8. So switching to mistake training");
+            print("Speed SE is lower but speed level count is either 4 or 8. So switching to mistake training");
             changeState("MISTAKE_TRAINING");
         }
     }
+
+    void createSpeedFocusedControlTrainingStrategy()
+    {
+            controlGrpTrainingTypeList = new List<ExperimentState> 
+            {
+                        ExperimentState.SPEED_TRAINING,
+                        ExperimentState.SPEED_TRAINING,
+                        ExperimentState.SPEED_TRAINING,
+                        ExperimentState.SPEED_TRAINING,
+                        ExperimentState.MISTAKE_TRAINING,
+                        ExperimentState.SPEED_TRAINING,
+                        ExperimentState.SPEED_TRAINING,
+                        ExperimentState.SPEED_TRAINING,
+                        ExperimentState.SPEED_TRAINING,
+                        ExperimentState.MISTAKE_TRAINING,
+            };
+        print("Control Group Training Strategy: ");
+        //Iterate through controlGrpTrainingTypeList
+        foreach (var item in controlGrpTrainingTypeList)
+        {
+            print(item);
+        }
+    }
+    
+    void createMistakeFocusedControlTrainingStrategy()
+    {
+        controlGrpTrainingTypeList = new List<ExperimentState>
+        {
+            ExperimentState.MISTAKE_TRAINING,
+            ExperimentState.MISTAKE_TRAINING,
+            ExperimentState.MISTAKE_TRAINING,
+            ExperimentState.MISTAKE_TRAINING,
+            ExperimentState.SPEED_TRAINING,
+            ExperimentState.MISTAKE_TRAINING,
+            ExperimentState.MISTAKE_TRAINING,
+            ExperimentState.MISTAKE_TRAINING,
+            ExperimentState.MISTAKE_TRAINING,
+            ExperimentState.SPEED_TRAINING,
+        };
+        print("Control Group Training Strategy: ");
+        //Iterate through controlGrpTrainingTypeList
+        foreach(var item in controlGrpTrainingTypeList)
+        {
+            print(item);
+        }
+    }
+
+    void pickTrainingTypeFromControlGrpTrainingList()
+    {
+        ExperimentState expState = controlGrpTrainingTypeList[currLevel];
+        print("Selected training type :" + expState);
+        changeState(expState.ToString());
+    }
+
 
     public void decideNextTrial()
     {
@@ -808,7 +863,7 @@ public class ExperimentManagerScript : MonoBehaviour
         if (currLevel < 10)
         {
             if (expCondition == ExperimentalCondition.ADAPTIVE)
-            {
+            {                
                 //Logic for selecting next primer
                 if (speedSEVal > mistakeSEVal)
                 {
@@ -835,23 +890,49 @@ public class ExperimentManagerScript : MonoBehaviour
             }
             else if (expCondition == ExperimentalCondition.CONTROL)
             {
-        
+                if (currLevel == 0) //Before training starts, just after the SE for the pretest has been submitted
+                {
+                    if (speedSEVal > mistakeSEVal) //80% Mistake training, 20% Speed training
+                    {
+                        createMistakeFocusedControlTrainingStrategy();
+                    }
+                    else if (speedSEVal < mistakeSEVal) //80% Speed training, 20% Mistake training
+                    {
+                        createSpeedFocusedControlTrainingStrategy();
+                    }
+                    else //Equal so randomly choose
+                    {
+                        //Randomly choose between invoking selectSpeedPrimer or selectMistakePrimer
+                        print("Mistake SE and Speed SE are equal. Randomly choosing between speed and mistake primer focused training strategy - ");
+                        float rand = UnityEngine.Random.Range(0, 9);
+                        if ((int)rand % 2 == 0)
+                        {
+                            createMistakeFocusedControlTrainingStrategy();
+                        }
+                        else
+                        {
+                            createSpeedFocusedControlTrainingStrategy();
+                        }
+                    }
+                    pickTrainingTypeFromControlGrpTrainingList();
+                }
+                else //For each training
+                {
+                    pickTrainingTypeFromControlGrpTrainingList();
+                }
             }
         }
         else
         {
-            //changeState("VR_POST_TEST");
+            //Write contents of trainingList into dataFileWriter
+            dataFileWriter.WriteLine("\nTraining type list: " + trainingTypeList.ToString());
         }
-        
-         //arrowObj.SetActive(false);
-        //hookRoot.SetActive(true); 
     }
 
     public void startSpeedPrimer()
     {
         speed = nextTrainingIterationSpeed;
         listPos = 0;
-        //
         StartCoroutine(MoveRing());
     }
 
