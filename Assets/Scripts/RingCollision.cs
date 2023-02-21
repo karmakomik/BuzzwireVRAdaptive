@@ -50,7 +50,7 @@ public class RingCollision : MonoBehaviour
 
         //print("OnTriggerEnter on collision with " + other.gameObject.name);
 
-        print("OnTriggerEnter: numCollidersInContact:" + experimentControllerScript.numCollidersInContact + "isFeedbackOnNow:" + experimentControllerScript.isFeedbackOnNow);
+        //print("OnTriggerEnter: numCollidersInContact:" + experimentControllerScript.numCollidersInContact + "isFeedbackOnNow:" + experimentControllerScript.isFeedbackOnNow);
         //Debug.Log("Object in contact - " + other.gameObject);
         if (other.tag != "StartZone" && other.tag != "StopZone" && experimentControllerScript.feedbackEnabled)
         {
@@ -68,14 +68,14 @@ public class RingCollision : MonoBehaviour
                 }
                 else
                 {
-                    print("Reattaching to wrong part");
+                    //print("Reattaching to wrong part");
                 }
             }
         }
-        else if (other.tag == "StopZone")
+        else if (other.tag == "StopZone" && experimentControllerScript.feedbackEnabled && !experimentControllerScript.isDetached) //This is true only when the loop is first passed through the start zone and the player is currently not making a mistake
         {
             experimentControllerScript.mistakeLineObj.SetActive(false);
-
+                
             experimentControllerScript.numCollidersInContact = 0;
             partNumAtTimeOfDetaching = 1;
             experimentControllerScript.feedbackEnabled = false;
@@ -86,15 +86,13 @@ public class RingCollision : MonoBehaviour
             if (experimentControllerScript.client != null && experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
                 experimentControllerScript.client.Write("M;1;;;RightSwitchPressedVR;\r\n");
 
-            //on trigger exit
-
-            Debug.Log("Level finished!");
+            //Debug.Log("Level finished!");
             if (experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
             {
                 experimentControllerScript.speedTrainingStarted = false;
                 levelEndTime = Time.time;
                 float currTaskTime = levelEndTime - levelStartTime;
-                
+
                 if (experimentControllerScript.expState == ExperimentState.SPEED_TRAINING || experimentControllerScript.expState == ExperimentState.MISTAKE_TRAINING)
                     experimentControllerScript.lastTrainingIterationSpeed = (float)57 / currTaskTime;
                 else if (experimentControllerScript.expState == ExperimentState.VR_PRE_TEST || experimentControllerScript.expState == ExperimentState.VR_POST_TEST)
@@ -106,22 +104,29 @@ public class RingCollision : MonoBehaviour
                     //Debug.Log("Data** Last TCT was - " + (float)(levelEndTime - levelStartTime));
                     experimentControllerScript.dataFileWriter.WriteLine("Mistake Time: " + experimentControllerScript.currTrainingIterationMistakeTime + " Task time: " + currTaskTime + " Speed: " + experimentControllerScript.lastTrainingIterationSpeed);
                     //Debug.Log("Last speed was - " + experimentControllerScript.lastTrainingIterationSpeed);
-                }
+                }                    
 
                 //Calculate next speed primer's speed based on either previous speed or pretest speed
                 if (experimentControllerScript.expState == ExperimentState.SPEED_TRAINING)
                 {
-                    if (ExperimentManagerScript.expCondition == ExperimentalCondition.CONTROL)
-                        experimentControllerScript.nextTrainingIterationSpeed = experimentControllerScript.lastTrainingIterationSpeed * 1.03f; // Increase speed by 3%
-                    else if (ExperimentManagerScript.expCondition == ExperimentalCondition.ADAPTIVE)
-                        experimentControllerScript.nextTrainingIterationSpeed = experimentControllerScript.lastTrainingIterationSpeed;
+                    if (ExperimentManagerScript.expCondition == ExperimentalCondition.ADAPTIVE) experimentControllerScript.nextTrainingIterationSpeed = experimentControllerScript.lastTrainingIterationSpeed;
+                    else if (ExperimentManagerScript.expCondition == ExperimentalCondition.CONTROL)
+                    {
+                        experimentControllerScript.nextTrainingIterationSpeed = (1 + ((1 + experimentControllerScript.speedLevelCount) * 0.03f)) * experimentControllerScript.pretestAtoBSpeed; //1.03f * experimentControllerScript.lastTrainingIterationSpeed; // Increase speed by 3%
+                        print("Speed primer multiplicative factor - " + (1 + ((1 + experimentControllerScript.speedLevelCount) * 0.03f)));
+                    }
                 }
 
                 //Calculate mistake time target for next training iteration based on either previous mistake time or pretest mistake time
                 if (experimentControllerScript.expState == ExperimentState.MISTAKE_TRAINING)
                 {
-                    experimentControllerScript.nextTrainingIterationMistakeTime = experimentControllerScript.currTrainingIterationMistakeTime; // Decrease mistake time by 10%
-                }
+                    if (ExperimentManagerScript.expCondition == ExperimentalCondition.ADAPTIVE) experimentControllerScript.nextTrainingIterationMistakeTime = experimentControllerScript.currTrainingIterationMistakeTime;
+                    else if (ExperimentManagerScript.expCondition == ExperimentalCondition.CONTROL)
+                    {
+                        experimentControllerScript.nextTrainingIterationMistakeTime = (1 + ((1 + experimentControllerScript.mistakeLevelCount) * -0.03f)) * experimentControllerScript.pretestAtoBMistakeTime; //0.97f * experimentControllerScript.currTrainingIterationMistakeTime; // Decrease mistake time by 3%                        
+                        print("Mistake primer multiplicative factor - " + (1 + ((1 + experimentControllerScript.mistakeLevelCount) * -0.03f)));
+                    }
+                }                    
 
                 if (experimentControllerScript.expState == ExperimentState.VR_PRE_TEST || experimentControllerScript.expState == ExperimentState.VR_POST_TEST)
                 {
@@ -133,31 +138,45 @@ public class RingCollision : MonoBehaviour
                         //experimentControllerScript.vrTestPostWaitInstructionObj.SetActive(true);
                         if (experimentControllerScript.didVRTestWaitPeriodEnd == true)
                         {
-                            print("B to A has ended");
+                            //print("B to A has ended");
                             totalMistakeTime = experimentControllerScript.currTrainingIterationMistakeTime + aToBMistakeTime;
                             totalTaskTime = currTaskTime + aToBTaskTime;
                             totalSpeed = (float)(52 * 2) / totalTaskTime;
                             experimentControllerScript.dataFileWriter.WriteLine("Combined Mistake Time: " + totalMistakeTime + " Combined Task time: " + totalTaskTime + " Combined Speed: " + totalSpeed);
-                            print("totalMistakeTime - " + totalMistakeTime);
-                            print("totalTaskTime - " + totalTaskTime);
-                            experimentControllerScript.nextTrainingIterationMistakeTime = (totalMistakeTime/104f)*57f; //Adjust mistake time for change in length from test to training levels.                             
-                            experimentControllerScript.nextTrainingIterationSpeed = totalSpeed;
-                            experimentControllerScript.changeState("TRAINING_SELF_EFFICACY");
+                            //print("totalMistakeTime - " + totalMistakeTime);
+                            //print("totalTaskTime - " + totalTaskTime);
+                            //experimentControllerScript.nextTrainingIterationMistakeTime = (totalMistakeTime/104f)*57f; //Adjust mistake time for change in length from test to training levels.                             
+                            //experimentControllerScript.nextTrainingIterationSpeed = totalSpeed;
+                            experimentControllerScript.changeState("TRAINING_SELF_EFFICACY"); //Invoked only when the loop goes from A to B and from B to A
                         }
                         else
                         {
-                            print("A to B has ended");
-                            print("aToBMistakeTime - " + aToBMistakeTime);
-                            print("aToBTaskTime - " + currTaskTime);
+                            //print("A to B has ended");
+                            //print("aToBMistakeTime - " + aToBMistakeTime);
+                            //print("aToBTaskTime - " + currTaskTime);
                             experimentControllerScript.vrTestWaitAtBInstructionObj.SetActive(true);
-                            aToBMistakeTime = experimentControllerScript.currTrainingIterationMistakeTime;
+                            aToBMistakeTime = experimentControllerScript.currTrainingIterationMistakeTime;                                
+
+                            if (ExperimentManagerScript.expCondition == ExperimentalCondition.CONTROL) 
+                            {
+                                experimentControllerScript.pretestAtoBMistakeTime = (aToBMistakeTime / 52f) * 57f;
+                                experimentControllerScript.nextTrainingIterationMistakeTime = 0.97f * experimentControllerScript.pretestAtoBMistakeTime; //Adjust mistake time for change in length from test to training levels. And then decrease target mistake time by 3%                            
+                                experimentControllerScript.pretestAtoBSpeed = experimentControllerScript.lastTrainingIterationSpeed;
+                                experimentControllerScript.nextTrainingIterationSpeed = experimentControllerScript.lastTrainingIterationSpeed * 1.03f; // Increase speed by 3%
+                            }
+                            else if (ExperimentManagerScript.expCondition == ExperimentalCondition.ADAPTIVE)
+                            {
+                                experimentControllerScript.nextTrainingIterationMistakeTime = (aToBMistakeTime / 52f) * 57f; //Adjust mistake time for change in length from test to training levels.
+                                experimentControllerScript.nextTrainingIterationSpeed = experimentControllerScript.lastTrainingIterationSpeed;
+                            }
+
                             aToBTaskTime = currTaskTime;
                             StartCoroutine(waitPeriodForVRTest());
                         }
-                    }                    
+                    }
                 }
                 else //Go to self efficacy when the loop touch the stop zone for every state except pre and post test
-                {                    
+                {
                     experimentControllerScript.changeState("TRAINING_SELF_EFFICACY");
                 }
 
@@ -166,6 +185,7 @@ public class RingCollision : MonoBehaviour
             {
                 experimentControllerScript.vrTestAtoBInstructionObj.SetActive(false);
             }
+
         }
     }
 
@@ -330,7 +350,7 @@ public class RingCollision : MonoBehaviour
 
         //print("OnTriggerExit after collision with " + other.gameObject.name);
             
-        print("OnTriggerExit : numCollidersInContact:" + experimentControllerScript.numCollidersInContact + "isFeedbackOnNow:" + experimentControllerScript.isFeedbackOnNow);
+        //print("OnTriggerExit : numCollidersInContact:" + experimentControllerScript.numCollidersInContact + "isFeedbackOnNow:" + experimentControllerScript.isFeedbackOnNow);
         
         if (other.tag != "StartZone" && other.tag != "StopZone" && experimentControllerScript.feedbackEnabled)
         {
@@ -338,7 +358,7 @@ public class RingCollision : MonoBehaviour
             //print("numCollidersInContact:" + numCollidersInContact + "isFeedbackOnNow:" + experimentControllerScript.isFeedbackOnNow);
             if (experimentControllerScript.numCollidersInContact < 1 && !experimentControllerScript.isFeedbackOnNow)
             {
-                Debug.Log("Number of colliders in contact is less than 1. Triggering feedback");
+                //Debug.Log("Number of colliders in contact is less than 1. Triggering feedback");
                 //currCollider = null;
                 if (other.gameObject.name.StartsWith("Part"))
                 {
@@ -363,7 +383,7 @@ public class RingCollision : MonoBehaviour
                 experimentControllerScript.speedTrainingStarted = true;
                 experimentControllerScript.startSpeedPrimer();                
             }
-            Debug.Log("Level started!");
+            //Debug.Log("Level started!");
             experimentControllerScript.currTrainingIterationMistakeTime = 0;
             
             levelStartTime = Time.time;            
@@ -408,7 +428,7 @@ public class RingCollision : MonoBehaviour
         experimentControllerScript.didVRTestWaitPeriodEnd = true;
         experimentControllerScript.vrTestWaitAtBInstructionObj.SetActive(false);
         experimentControllerScript.vrTestBtoAInstructionObj.SetActive(true);
-        print("waitPeriodForVRTest over");        
+        //print("waitPeriodForVRTest over");        
     }
 
     /*private void OnDrawGizmos()

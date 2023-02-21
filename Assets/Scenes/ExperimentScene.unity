@@ -219,6 +219,18 @@ MonoBehaviour:
           m_StringArgument: VR_POST_TEST
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 7866795}
+        m_TargetAssemblyTypeName: UnityEngine.GameObject, UnityEngine
+        m_MethodName: SetActive
+        m_Mode: 6
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &7866798
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11972,6 +11984,7 @@ MonoBehaviour:
   mistakeIndicator: {fileID: 8366529922224241248}
   baselineOverIndicator: {fileID: 3083725347326070696}
   configMenu: {fileID: 3083725346759968222}
+  decideNextTrainingTypeButtonObj: {fileID: 1533212012}
   avatar_x_slider: {fileID: 3083725345455725654}
   avatar_y_slider: {fileID: 3083725346640498161}
   avatar_z_slider: {fileID: 3083725347087633555}
@@ -13050,8 +13063,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1511820812}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.597, y: -1.12, z: -1.936}
-  m_LocalScale: {x: 3.396367, y: 2.5746374, z: 3.1296644}
+  m_LocalPosition: {x: -2.6849, y: -1.12, z: -1.936}
+  m_LocalScale: {x: 5.5720797, y: 2.5746374, z: 3.1296644}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1872077950}
@@ -13073,13 +13086,13 @@ MonoBehaviour:
   MeasurementSource: 0
   DistanceObject: {fileID: 0}
   showSourceError: 0
-  width_meters: 3.396367
+  width_meters: 5.5720797
   height_meters: 2.5746374
   depth_meters: 3.1296644
-  width: 3.396367
+  width: 5.5720797
   height: 2.5746374
   depth: 3.1296644
-  width_string: 3.396367 meters
+  width_string: 5.57208 meters
   height_string: 2.574637 meters
   depth_string: 3.129664 meters
   angle_xz: 0
@@ -13417,6 +13430,18 @@ MonoBehaviour:
         m_TargetAssemblyTypeName: ExperimentManagerScript, Assembly-CSharp
         m_MethodName: decideNextTrial
         m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 1533212012}
+        m_TargetAssemblyTypeName: UnityEngine.GameObject, UnityEngine
+        m_MethodName: SetActive
+        m_Mode: 6
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine

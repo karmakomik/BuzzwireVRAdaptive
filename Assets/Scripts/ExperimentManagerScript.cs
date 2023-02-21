@@ -2,12 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using SimpleTCP;
-using UnityEditor.PackageManager;
 using UnityEngine.UI;
-using System.Security.Policy;
-using System.ComponentModel.Design;
 using Unity.Mathematics;
-using System.Security.Cryptography;
 using System.IO;
 using UnityEditor;
 
@@ -31,12 +27,11 @@ public enum ExperimentalCondition
     ADAPTIVE
 }
 
-
 public class ExperimentManagerScript : MonoBehaviour
 {
     static ExperimentManagerScript thisObj;
 
-    public static ExperimentalCondition expCondition;
+    public static ExperimentalCondition expCondition; //static so that it can be set from other scripts
 
     List<GameObject> anchorsLst;
     public List<GameObject> colliderList;
@@ -78,6 +73,7 @@ public class ExperimentManagerScript : MonoBehaviour
     public GameObject baselineOverIndicator;
     //public GameObject restOverIndicator;
     public GameObject configMenu;
+    public GameObject decideNextTrainingTypeButtonObj;
     public Slider avatar_x_slider, avatar_y_slider, avatar_z_slider, hapticEnv_x_slider, hapticEnv_y_slider, hapticEnv_z_slider;
     public TMPro.TMP_Text currSpeedTxt, prevSpeedTxt, currTrainingIterationTxt;
 
@@ -109,7 +105,7 @@ public class ExperimentManagerScript : MonoBehaviour
 
     public ExperimentState expState;
     int currLevel;
-    int mistakeLevelCount, speedLevelCount;
+    public int mistakeLevelCount, speedLevelCount;
     List<ExperimentState> trainingTypeList, controlGrpTrainingTypeList;
 
     public GameObject ghostRightHandController;
@@ -120,6 +116,7 @@ public class ExperimentManagerScript : MonoBehaviour
     
     public float lastTrainingIterationSpeed, nextTrainingIterationSpeed;
     public float currTrainingIterationMistakeTime, lastTrainingIterationMistakeTime, nextTrainingIterationMistakeTime;
+    public float pretestAtoBMistakeTime, pretestAtoBSpeed;
     public float mistakeStartTime, mistakeEndTime;
     public int numCollidersInContact; //To potentially solve script execution order issues
 
@@ -166,7 +163,9 @@ public class ExperimentManagerScript : MonoBehaviour
         mistakeLevelCount = speedLevelCount = 0;
         trainingTypeList = new List<ExperimentState>();
 
+#if UNITY_EDITOR
         expCondition = ExperimentalCondition.CONTROL;
+#endif 
 
         if (expCondition == ExperimentalCondition.CONTROL)
             conditionTxt.text = "Control";
@@ -187,7 +186,7 @@ public class ExperimentManagerScript : MonoBehaviour
             colliderList.Add(levelCollidersRoot.transform.GetChild(i).gameObject);
         }
 
-        changeState("PRE_TEST");
+        changeState("INIT");
 
         solidRightHandControllerDefaultRot = solidRightHandController.transform.localRotation;
         solidRightHandControllerDefaultPos = solidRightHandController.transform.localPosition;
@@ -209,11 +208,11 @@ public class ExperimentManagerScript : MonoBehaviour
         }
         dataFileWriter = new StreamWriter(Application.persistentDataPath + "/AdaptiveExperimentData/" + _participantId + System.DateTime.Now.ToString("Data_dd_MMMM_yyyy_HH_mm_ss") + ".txt");
         dataFileWriter.WriteLine(expCondition.ToString());
+#if UNITY_EDITOR
         EditorApplication.playModeStateChanged += LogPlayModeState;
-
+#endif
         client = new SimpleTcpClient().Connect("127.0.0.1", 8089);
     }
-
     
 #if UNITY_EDITOR
     private static void LogPlayModeState(PlayModeStateChange state)
@@ -222,7 +221,6 @@ public class ExperimentManagerScript : MonoBehaviour
         Debug.Log(state);
     }
 #endif
-
 
     private void FixedUpdate()
     {
@@ -296,15 +294,11 @@ public class ExperimentManagerScript : MonoBehaviour
                 touchedObj = arrow.touchingObj;
                 if (touchedObj == speedSEsliderObj)
                 {
-                    //print("Touching speed SE slider line");
-                    //int newX = (int)math.remap(arrow.xMin, arrow.xMax, formUIScript.xMin, formUIScript.xMax, hapticDeviceArrow.clickLoc.x);
-                    //int clampedX = (int)math.clamp(newX, formUIScript.xMin, formUIScript.xMax);
                     speedSESliderXMin = speedSEsliderStartLocObj.transform.position.x;
                     speedSESliderXMax = speedSEsliderEndLocObj.transform.position.x;
                     int selectedVal = (int)math.remap(speedSESliderXMin, speedSESliderXMax, 1, 100, arrow.clickLoc.x);
                     speedSEVal = (int)math.clamp(selectedVal, 1, 100);
-                    //print("Selected Speed SE:" + speedSEVal);
-                    
+                    //print("Selected Speed SE:" + speedSEVal);                    
                 }
                 else if (touchedObj == mistakeSEsliderObj)
                 {
@@ -457,50 +451,6 @@ public class ExperimentManagerScript : MonoBehaviour
 
         StartCoroutine(startBaselineCounterCoroutine());
     }
-
-    public void moveToLevel(int level)
-    {
-        mistakeLineObj.GetComponent<LineRenderer>().startColor = Color.black;
-        mistakeLineObj.GetComponent<LineRenderer>().endColor = Color.black;
-        //modeTxt.text = "Training Mode On";
-        //trainingPhase = true;
-        if (level == 0)
-        {
-            //setAllLevelsInactive();
-            levelTimeResultsObj.SetActive(false);
-            trainingWireObj.SetActive(true);
-            hookRoot.SetActive(false);
-            //hookRoot = hook_difficulty_1_root;
-            //ghostRightHandController = ghost_difficulty_1;
-            //solidRightHandController = solid_difficulty_1;
-            hookRoot.SetActive(true);
-
-            if (client != null)
-                client.Write("M;1;;;level_1_started;\r\n");
-        }
-
-
-        //startStopRefController.transform.position = startPositions[currLevel - 1];
-
-    }
-
-    
-    public void changeHapticEnv_x(float x)
-    {
-        hapticEnv.transform.position = new Vector3(x, hapticEnv.transform.position.y, hapticEnv.transform.position.z);
-    }
-
-    public void changeHapticEnv_y(float y)
-    {
-        hapticEnv.transform.position = new Vector3(hapticEnv.transform.position.x, y, hapticEnv.transform.position.z);
-    }
-
-    public void changeHapticEnv_z(float z)
-    {
-        hapticEnv.transform.position = new Vector3(hapticEnv.transform.position.x, hapticEnv.transform.position.y, z);
-    }
-
-
 
     public void changeAvatar_x(float x)
     {
@@ -727,6 +677,7 @@ public class ExperimentManagerScript : MonoBehaviour
     {
         //print("seOkButtonClicked");
         surveyPanel.SetActive(false);
+        decideNextTrainingTypeButtonObj.SetActive(true);
         dataFileWriter.WriteLine("\nSpeed SE Value:" + speedSEVal + ", Mistake SE Value:" + mistakeSEVal);
     }
 
@@ -773,32 +724,46 @@ public class ExperimentManagerScript : MonoBehaviour
     void checkMistakeLevelCountAndChoose()
     {
         int _mistakeLevelCount = trainingTypeList.FindAll(x => x == ExperimentState.MISTAKE_TRAINING).Count;
-        print("Count of Mistake training instances so far: " + trainingTypeList.FindAll(x => x == ExperimentState.MISTAKE_TRAINING).Count);
-        if (_mistakeLevelCount != 4 || _mistakeLevelCount != 8)
+        int _speedLevelCount = trainingTypeList.FindAll(x => x == ExperimentState.SPEED_TRAINING).Count;
+        print("Count of Mistake training instances so far: " + _mistakeLevelCount);
+        print("Count of Speed training instances so far: " + _speedLevelCount);
+        if (_mistakeLevelCount == 4 && _speedLevelCount == 0)
         {
-            print("Mistake SE is lower");
-            changeState("MISTAKE_TRAINING");
+            print("Mistake SE is lower but mistake level count is 4 and speed level count is 0. So switching to speed training");
+            changeState("SPEED_TRAINING");
+        }
+        else if (_mistakeLevelCount == 8 && _speedLevelCount == 1)
+        {
+            print("Mistake SE is lower but mistake level count is 8 and speed level count is 1. So switching to speed training");
+            changeState("SPEED_TRAINING");
         }
         else
         {
-            print("Mistake SE is lower but mistake level count is either 4 or 8. So switching to speed training");
-            changeState("SPEED_TRAINING");
+            print("Mistake SE is lower");
+            changeState("MISTAKE_TRAINING");
         }
     }
 
     void checkSpeedLevelCountAndChoose()
     {
         int _speedLevelCount = trainingTypeList.FindAll(x => x == ExperimentState.SPEED_TRAINING).Count;
-        print("Count of Speed training instances so far: " + trainingTypeList.FindAll(x => x == ExperimentState.SPEED_TRAINING).Count);
-        if (_speedLevelCount != 4 || _speedLevelCount != 8)
+        int _mistakeLevelCount = trainingTypeList.FindAll(x => x == ExperimentState.MISTAKE_TRAINING).Count;
+        print("Count of Speed training instances so far: " + _speedLevelCount);
+        print("Count of Mistake training instances so far: " + _mistakeLevelCount);
+        if (_speedLevelCount == 4 && _mistakeLevelCount == 0)
         {
-            print("Speed SE is lower");
-            changeState("SPEED_TRAINING");
+            print("Speed SE is lower but speed level count is 4 and mistake level count is 0. So switching to mistake training");
+            changeState("MISTAKE_TRAINING");
+        }
+        else if(_speedLevelCount == 8 && _mistakeLevelCount == 1)
+        {
+            print("Speed SE is lower but speed level count is 8 and mistake level count is 1. So switching to mistake training");
+            changeState("MISTAKE_TRAINING");
         }
         else
         {
-            print("Speed SE is lower but speed level count is either 4 or 8. So switching to mistake training");
-            changeState("MISTAKE_TRAINING");
+            print("Speed SE is lower");
+            changeState("SPEED_TRAINING");
         }
     }
 
@@ -925,7 +890,7 @@ public class ExperimentManagerScript : MonoBehaviour
         else
         {
             //Write contents of trainingList into dataFileWriter
-            dataFileWriter.WriteLine("\nTraining type list: " + trainingTypeList.ToString());
+            //dataFileWriter.WriteLine("\nTraining type list: " + trainingTypeList.ToString());
         }
     }
 
