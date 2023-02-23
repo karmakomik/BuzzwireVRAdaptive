@@ -94,6 +94,7 @@ public class ExperimentManagerScript : MonoBehaviour
     float speedSESliderXMin, speedSESliderXMax;
     float mistakeSESliderXMin, mistakeSESliderXMax;
     public GameObject instructionPanelObj, mistakePrimerInstructionTxtObj, speedPrimerInstructionTxtObj, okButtonObj;
+    public GameObject vrTestAtoBInstructionObj, vrTestBtoAInstructionObj, vrTestWaitAtBInstructionObj, vrTutorialInstructionObj;
 
     public GameObject laserPointerObj;
     public Quaternion hookRootDefaultRot;
@@ -121,7 +122,7 @@ public class ExperimentManagerScript : MonoBehaviour
     public int numCollidersInContact; //To potentially solve script execution order issues
 
     public bool didLoopExitStartZone, didLoopTouchStopZone, didVRTestWaitPeriodEnd;
-    public GameObject vrTestStartZoneObj, vrTestStopZoneObj, vrTestAtoBInstructionObj, vrTestBtoAInstructionObj, vrTestWaitAtBInstructionObj;
+    public GameObject vrTestStartZoneObj, vrTestStopZoneObj;
     Vector3 vrTestStartZonePos, vrTestStopZonePos;
 
     public StreamWriter dataFileWriter;
@@ -495,8 +496,9 @@ public class ExperimentManagerScript : MonoBehaviour
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(false);
                 vrTutorialWireObj.SetActive(true);
-                vrTestAtoBInstructionObj.SetActive(true);
-                
+                vrTestAtoBInstructionObj.SetActive(false);
+                vrTutorialInstructionObj.SetActive(true);
+
                 break;
                 
             case "VR_PRE_TEST":
@@ -510,6 +512,7 @@ public class ExperimentManagerScript : MonoBehaviour
                 speedPrimer.SetActive(false);
                 mistakeTimeIndicatorObj.SetActive(false);
                 arrowObj.SetActive(false);
+                vrTutorialInstructionObj.SetActive(false);
                 didLoopExitStartZone = false;
                 didLoopTouchStopZone = false;
                 didVRTestWaitPeriodEnd = false;
@@ -529,6 +532,7 @@ public class ExperimentManagerScript : MonoBehaviour
                 speedPrimer.SetActive(false);
                 mistakeTimeIndicatorObj.SetActive(false);
                 arrowObj.SetActive(false);
+                vrTutorialInstructionObj.SetActive(false);
                 didLoopExitStartZone = false;
                 didLoopTouchStopZone = false;
                 didVRTestWaitPeriodEnd = false;
@@ -551,6 +555,7 @@ public class ExperimentManagerScript : MonoBehaviour
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(false);
                 vrTutorialWireObj.SetActive(false);
+                vrTutorialInstructionObj.SetActive(false);
 
                 mistakeTimeIndicatorObj.SetActive(false);
                 arrowObj.SetActive(true);
@@ -583,7 +588,8 @@ public class ExperimentManagerScript : MonoBehaviour
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(false);
                 vrTutorialWireObj.SetActive(false);
-    
+                vrTutorialInstructionObj.SetActive(false);
+
                 mistakeTimeIndicatorObj.SetActive(true);
                 instructionPanelObj.SetActive(true);
                 speedPrimerInstructionTxtObj.SetActive(false);
@@ -644,7 +650,7 @@ public class ExperimentManagerScript : MonoBehaviour
 
     IEnumerator showOkButtonAfterDelay()
     {
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds(3f);
         okButtonObj.SetActive(true);
         arrowObj.SetActive(true);
     }
@@ -677,7 +683,8 @@ public class ExperimentManagerScript : MonoBehaviour
     {
         //print("seOkButtonClicked");
         surveyPanel.SetActive(false);
-        decideNextTrainingTypeButtonObj.SetActive(true);
+        //decideNextTrainingTypeButtonObj.SetActive(true);
+        decideNextTrial();
         dataFileWriter.WriteLine("\nSpeed SE Value:" + speedSEVal + ", Mistake SE Value:" + mistakeSEVal);
     }
 
