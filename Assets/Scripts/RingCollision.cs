@@ -14,7 +14,7 @@ public class RingCollision : MonoBehaviour
     private Vector3 mistakeVector;
     Vector3 mistakeDirection;
     float levelStartTime, levelEndTime;
-    GameObject _mistakePrimerObj;
+    GameObject _mistakePrimerObj, _speedPrimerObj;
 
     float aToBMistakeTime, aToBTaskTime, totalTaskTime, totalMistakeTime, totalSpeed;
 
@@ -28,6 +28,7 @@ public class RingCollision : MonoBehaviour
         experimentControllerScript = experimentController.GetComponent<ExperimentManagerScript>();
         experimentControllerScript.numCollidersInContact = 0;
         _mistakePrimerObj = experimentControllerScript.mistakePrimer;
+        _speedPrimerObj = experimentControllerScript.speedPrimer;
     }
 
     // Update is called once per frame
@@ -84,7 +85,10 @@ public class RingCollision : MonoBehaviour
             experimentControllerScript.ghostRightHandController.SetActive(true);
 
             if (experimentControllerScript.client != null && experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
+            {
+                experimentControllerScript.accelLogger.logEventHeader("Stopped");
                 experimentControllerScript.client.Write("M;1;;;RightSwitchPressedVR;\r\n");
+            }
 
             //Debug.Log("Level finished!");
             if (experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
@@ -109,11 +113,14 @@ public class RingCollision : MonoBehaviour
                 //Calculate next speed primer's speed based on either previous speed or pretest speed
                 if (experimentControllerScript.expState == ExperimentState.SPEED_TRAINING)
                 {
-                    if (ExperimentManagerScript.expCondition == ExperimentalCondition.ADAPTIVE) experimentControllerScript.nextTrainingIterationSpeed = experimentControllerScript.lastTrainingIterationSpeed;
+                    if (ExperimentManagerScript.expCondition == ExperimentalCondition.ADAPTIVE)
+                    { 
+                        experimentControllerScript.nextTrainingIterationSpeed = experimentControllerScript.lastTrainingIterationSpeed; 
+                    }
                     else if (ExperimentManagerScript.expCondition == ExperimentalCondition.CONTROL)
                     {
-                        experimentControllerScript.nextTrainingIterationSpeed = (1 + ((1 + experimentControllerScript.speedLevelCount) * 0.03f)) * experimentControllerScript.pretestAtoBSpeed; //1.03f * experimentControllerScript.lastTrainingIterationSpeed; // Increase speed by 3%
-                        print("Speed primer multiplicative factor - " + (1 + ((1 + experimentControllerScript.speedLevelCount) * 0.03f)));
+                        experimentControllerScript.nextTrainingIterationSpeed = (1 + ((1 + experimentControllerScript.speedLevelCount) * 0.0225f)) * experimentControllerScript.pretestAtoBSpeed; //1.03f * experimentControllerScript.lastTrainingIterationSpeed; // Increase speed by 3%
+                        print("Speed primer multiplicative factor - " + (1 + ((1 + experimentControllerScript.speedLevelCount) * 0.0225f)));
                     }
                 }
 
@@ -142,7 +149,7 @@ public class RingCollision : MonoBehaviour
                             totalMistakeTime = experimentControllerScript.currTrainingIterationMistakeTime + aToBMistakeTime;
                             totalTaskTime = currTaskTime + aToBTaskTime;
                             totalSpeed = (float)(52 * 2) / totalTaskTime;
-                            experimentControllerScript.dataFileWriter.WriteLine("Combined Mistake Time: " + totalMistakeTime + " Combined Task time: " + totalTaskTime + " Combined Speed: " + totalSpeed);
+                            //experimentControllerScript.dataFileWriter.WriteLine("Combined Mistake Time: " + totalMistakeTime + " Combined Task time: " + totalTaskTime + " Combined Speed: " + totalSpeed);
                             //print("totalMistakeTime - " + totalMistakeTime);
                             //print("totalTaskTime - " + totalTaskTime);
                             //experimentControllerScript.nextTrainingIterationMistakeTime = (totalMistakeTime/104f)*57f; //Adjust mistake time for change in length from test to training levels.                             
@@ -162,7 +169,7 @@ public class RingCollision : MonoBehaviour
                                 experimentControllerScript.pretestAtoBMistakeTime = (aToBMistakeTime / 52f) * 57f;
                                 experimentControllerScript.nextTrainingIterationMistakeTime = 0.97f * experimentControllerScript.pretestAtoBMistakeTime; //Adjust mistake time for change in length from test to training levels. And then decrease target mistake time by 3%                            
                                 experimentControllerScript.pretestAtoBSpeed = experimentControllerScript.lastTrainingIterationSpeed;
-                                experimentControllerScript.nextTrainingIterationSpeed = experimentControllerScript.lastTrainingIterationSpeed * 1.03f; // Increase speed by 3%
+                                experimentControllerScript.nextTrainingIterationSpeed = experimentControllerScript.lastTrainingIterationSpeed * 1.0225f; // Increase speed by 3%
                             }
                             else if (ExperimentManagerScript.expCondition == ExperimentalCondition.ADAPTIVE)
                             {
@@ -378,10 +385,17 @@ public class RingCollision : MonoBehaviour
         {
             //experimentControllerScript.numCollidersInContact = 1;
             //print("numCollidersInContact: " + numCollidersInContact + ",isFeedbackOnNow: " + experimentControllerScript.isFeedbackOnNow);
-            if (experimentControllerScript.expState == ExperimentState.SPEED_TRAINING && !experimentControllerScript.speedTrainingStarted)
+
+            if (experimentControllerScript.expState == ExperimentState.MISTAKE_TRAINING) _mistakePrimerObj.SetActive(true);
+
+            if (experimentControllerScript.expState == ExperimentState.SPEED_TRAINING)
             {
-                experimentControllerScript.speedTrainingStarted = true;
-                experimentControllerScript.startSpeedPrimer();                
+                _speedPrimerObj.SetActive(true);
+                if (!experimentControllerScript.speedTrainingStarted)
+                {
+                    experimentControllerScript.speedTrainingStarted = true;
+                    experimentControllerScript.startSpeedPrimer();
+                }
             }
             //Debug.Log("Level started!");
             experimentControllerScript.currTrainingIterationMistakeTime = 0;
@@ -397,25 +411,27 @@ public class RingCollision : MonoBehaviour
             experimentControllerScript.doControllerReattachOperations("null");
             experimentControllerScript.mistakeLineObj.SetActive(false);
 
-            if (experimentControllerScript.expState == ExperimentState.MISTAKE_TRAINING) _mistakePrimerObj.SetActive(true);            
-
             if (experimentControllerScript.expState == ExperimentState.VR_PRE_TEST || experimentControllerScript.expState == ExperimentState.VR_POST_TEST)
             {
                 experimentControllerScript.didLoopExitStartZone = true;
                 if(experimentControllerScript.didVRTestWaitPeriodEnd == true)
                 {
-                    print("B to A has started");
+                    //print("B to A has started");                    
                     experimentControllerScript.vrTestBtoAInstructionObj.SetActive(false);
                 }
                 else
                 {
-                    print("A to B has started");
+                    //print("A to B has started");                    
                     experimentControllerScript.vrTestAtoBInstructionObj.SetActive(false);
                 }
             }
-                        
+
             if (experimentControllerScript.client != null && experimentControllerScript.expState != ExperimentState.VR_TUTORIAL)
+            {
+                experimentControllerScript.accelLogger.logEventHeader("Started");
                 experimentControllerScript.client.Write("M;1;;;LeftSwitchPressedVR;\r\n");
+            }
+                
         }
     }
     
@@ -423,7 +439,7 @@ public class RingCollision : MonoBehaviour
     {
         experimentControllerScript.didLoopTouchStopZone = false;
         experimentControllerScript.didLoopExitStartZone = false;
-        yield return new WaitForSeconds(5);
+        yield return new WaitForSeconds(3);
         experimentControllerScript.swapTestStartStopPositions();
         experimentControllerScript.didVRTestWaitPeriodEnd = true;
         experimentControllerScript.vrTestWaitAtBInstructionObj.SetActive(false);

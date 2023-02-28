@@ -125,7 +125,10 @@ public class ExperimentManagerScript : MonoBehaviour
     public GameObject vrTestStartZoneObj, vrTestStopZoneObj;
     Vector3 vrTestStartZonePos, vrTestStopZonePos;
 
+    bool hasVRPostTestBeenPerformed = false;
+
     public StreamWriter dataFileWriter;
+    public AccelerationLoggerScript accelLogger;
     string _participantId;
 
     public SimpleTcpClient client;
@@ -165,7 +168,7 @@ public class ExperimentManagerScript : MonoBehaviour
         trainingTypeList = new List<ExperimentState>();
 
 #if UNITY_EDITOR
-        expCondition = ExperimentalCondition.CONTROL;
+        expCondition = ExperimentalCondition.ADAPTIVE;
 #endif 
 
         if (expCondition == ExperimentalCondition.CONTROL)
@@ -207,7 +210,8 @@ public class ExperimentManagerScript : MonoBehaviour
         {
             Directory.CreateDirectory(Application.persistentDataPath + "/AdaptiveExperimentData");
         }
-        dataFileWriter = new StreamWriter(Application.persistentDataPath + "/AdaptiveExperimentData/" + _participantId + System.DateTime.Now.ToString("Data_dd_MMMM_yyyy_HH_mm_ss") + ".txt");
+        accelLogger.acc_sw = new StreamWriter(Application.persistentDataPath + "/AdaptiveExperimentData/" + _participantId + "_accel_" + System.DateTime.Now.ToString("_dd_MMMM_yyyy_HH_mm_ss") + ".txt");
+        dataFileWriter = new StreamWriter(Application.persistentDataPath + "/AdaptiveExperimentData/" + _participantId + System.DateTime.Now.ToString("_dd_MMMM_yyyy_HH_mm_ss") + ".txt");
         dataFileWriter.WriteLine(expCondition.ToString());
 #if UNITY_EDITOR
         EditorApplication.playModeStateChanged += LogPlayModeState;
@@ -219,6 +223,7 @@ public class ExperimentManagerScript : MonoBehaviour
     private static void LogPlayModeState(PlayModeStateChange state)
     {
         thisObj.dataFileWriter.Flush();
+        thisObj.accelLogger.acc_sw.Flush();
         Debug.Log(state);
     }
 #endif
@@ -518,7 +523,15 @@ public class ExperimentManagerScript : MonoBehaviour
                 didVRTestWaitPeriodEnd = false;
                 vrTestAtoBInstructionObj.SetActive(true);
                 resetTestStartStopPositions();
-                
+
+                dataFileWriter.WriteLine("\nVR Pre Test");
+                dataFileWriter.WriteLine("--------------");
+
+                accelLogger.logEventHeader("VR_Pre_Test");
+
+                if (client != null)
+                    client.Write("M;1;;;vr_pre_test_started;\r\n");
+
                 break;
 
             case "VR_POST_TEST":
@@ -538,7 +551,15 @@ public class ExperimentManagerScript : MonoBehaviour
                 didVRTestWaitPeriodEnd = false;
                 vrTestAtoBInstructionObj.SetActive(true);
                 resetTestStartStopPositions();
-                
+
+                dataFileWriter.WriteLine("\nVR Post Test");
+                dataFileWriter.WriteLine("--------------");
+
+                accelLogger.logEventHeader("VR_Post_Test");
+
+                if (client != null)
+                    client.Write("M;1;;;vr_post_test_started;\r\n");
+
                 break;
 
             case "SPEED_TRAINING":
@@ -550,7 +571,9 @@ public class ExperimentManagerScript : MonoBehaviour
                 dataFileWriter.WriteLine("--------------------------------");
                 dataFileWriter.WriteLine("Training iteration: " + currLevel + ", Speed training iteration: " + speedLevelCount);
 
-                currTrainingIterationTxt.text = "Iteration #" + currLevel;
+                accelLogger.logEventHeader("Training iteration: " + currLevel + ", Speed training iteration: " + speedLevelCount);
+
+                currTrainingIterationTxt.text = "Training #" + currLevel;
 
                 trainingWireObj.SetActive(false);
                 vrTestWireObj.SetActive(false);
@@ -572,7 +595,7 @@ public class ExperimentManagerScript : MonoBehaviour
                 
                 modeTxt.text = "Speed Training";                
                 if (client != null)
-                    client.Write("M;1;;;speed_training_started;\r\n");
+                    client.Write("M;1;;;training_" + currLevel + "_started;\r\n");
                 break;
 
             case "MISTAKE_TRAINING":
@@ -583,6 +606,9 @@ public class ExperimentManagerScript : MonoBehaviour
                 dataFileWriter.WriteLine("\nMistake Primer Training Selected");
                 dataFileWriter.WriteLine("----------------------------------");
                 dataFileWriter.WriteLine("Training iteration: " + currLevel + ", Mistake training iteration: " + mistakeLevelCount);
+
+                accelLogger.logEventHeader("Training iteration: " + currLevel + ", Mistake training iteration: " + mistakeLevelCount);
+
                 currTrainingIterationTxt.text = "Iteration #" + currLevel;
 
                 trainingWireObj.SetActive(false);
@@ -601,14 +627,14 @@ public class ExperimentManagerScript : MonoBehaviour
                 lastTrainingIterationMistakeTime = nextTrainingIterationMistakeTime;
                 dataFileWriter.WriteLine("Target training mistake time: " + lastTrainingIterationMistakeTime);
                 //lastTrainingIterationMistakeTime = currTrainingIterationMistakeTime; // Decrease mistake time by 10%
-                Debug.Log("Data** Next mistake time target is - " + lastTrainingIterationMistakeTime);
+                //Debug.Log("Data** Next mistake time target is - " + lastTrainingIterationMistakeTime);
                 //currTrainingIterationMistakeTime = 0;
                 mistakeTimeIndicatorObj.GetComponent<Image>().fillAmount = 1;
                 mistakePrimer.transform.position = mistakePrimerStartRefPos;               
                 
                 modeTxt.text = "Mistake Training";
                 if (client != null)
-                    client.Write("M;1;;;_mistake_training_started;\r\n");
+                    client.Write("M;1;;;training_" + currLevel + "_started;\r\n");
                 break;
 
             case "TRAINING_SELF_EFFICACY":
@@ -668,8 +694,8 @@ public class ExperimentManagerScript : MonoBehaviour
 
         if (expState == ExperimentState.SPEED_TRAINING)
         {
-            speedPrimer.SetActive(true);
-            //mistakePrimer.SetActive(false);
+            //speedPrimer.SetActive(true);
+            mistakePrimer.SetActive(false);
 
         }
         else if (expState == ExperimentState.MISTAKE_TRAINING)
@@ -684,8 +710,8 @@ public class ExperimentManagerScript : MonoBehaviour
         //print("seOkButtonClicked");
         surveyPanel.SetActive(false);
         //decideNextTrainingTypeButtonObj.SetActive(true);
-        decideNextTrial();
         dataFileWriter.WriteLine("\nSpeed SE Value:" + speedSEVal + ", Mistake SE Value:" + mistakeSEVal);
+        decideNextTrial();        
     }
 
 
@@ -791,10 +817,10 @@ public class ExperimentManagerScript : MonoBehaviour
             };
         print("Control Group Training Strategy: ");
         //Iterate through controlGrpTrainingTypeList
-        foreach (var item in controlGrpTrainingTypeList)
+        /*foreach (var item in controlGrpTrainingTypeList)
         {
             print(item);
-        }
+        }*/
     }
     
     void createMistakeFocusedControlTrainingStrategy()
@@ -814,10 +840,10 @@ public class ExperimentManagerScript : MonoBehaviour
         };
         print("Control Group Training Strategy: ");
         //Iterate through controlGrpTrainingTypeList
-        foreach(var item in controlGrpTrainingTypeList)
+        /*foreach(var item in controlGrpTrainingTypeList)
         {
             print(item);
-        }
+        }*/
     }
 
     void pickTrainingTypeFromControlGrpTrainingList()
@@ -896,6 +922,11 @@ public class ExperimentManagerScript : MonoBehaviour
         }
         else
         {
+            if (!hasVRPostTestBeenPerformed)
+            {
+                changeState("VR_POST_TEST");
+                hasVRPostTestBeenPerformed = true;
+            }
             //Write contents of trainingList into dataFileWriter
             //dataFileWriter.WriteLine("\nTraining type list: " + trainingTypeList.ToString());
         }
@@ -962,7 +993,8 @@ public class ExperimentManagerScript : MonoBehaviour
 
     public void closeApp()
     {
-        dataFileWriter.Close();
+        dataFileWriter.Close();        
+        accelLogger.acc_sw.Close();        
         Application.Quit();
     }
 
