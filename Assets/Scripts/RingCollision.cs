@@ -149,7 +149,7 @@ public class RingCollision : MonoBehaviour
                             totalMistakeTime = experimentControllerScript.currTrainingIterationMistakeTime + aToBMistakeTime;
                             totalTaskTime = currTaskTime + aToBTaskTime;
                             totalSpeed = (float)(52 * 2) / totalTaskTime;
-                            //experimentControllerScript.dataFileWriter.WriteLine("Combined Mistake Time: " + totalMistakeTime + " Combined Task time: " + totalTaskTime + " Combined Speed: " + totalSpeed);
+                            experimentControllerScript.dataFileWriter.WriteLine("Combined Mistake Time: " + totalMistakeTime + " Combined Task time: " + totalTaskTime + " Combined Speed: " + totalSpeed);
                             //print("totalMistakeTime - " + totalMistakeTime);
                             //print("totalTaskTime - " + totalTaskTime);
                             //experimentControllerScript.nextTrainingIterationMistakeTime = (totalMistakeTime/104f)*57f; //Adjust mistake time for change in length from test to training levels.                             
