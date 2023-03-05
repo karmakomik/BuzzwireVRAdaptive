@@ -403,7 +403,8 @@ public class RingCollision : MonoBehaviour
             levelStartTime = Time.time;            
 
             experimentControllerScript.feedbackEnabled = true;
-            
+            experimentControllerScript.isFeedbackOnNow = false;
+
             experimentControllerScript.solidRightHandController.SetActive(true);
             experimentControllerScript.ghostRightHandController.SetActive(false);
 
