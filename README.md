@@ -7,11 +7,6 @@ This repository contains the Unity and Arduino project files developed for the e
 - Unity 2021.3.16f1
 - iMotions 9.2
 
-# Hardware Requirements
-
-- Geomagic Touch
-- Custom handle (see screenshots) - Not required, but needed for vibration condition to work as expected
-
 ## Authors and acknowledgments
 
 - Programming (Unity/Arduino) - Unnikrishnan Radhakrishnan 
